@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -27,7 +26,6 @@ type MinuteWatcher struct {
 	stopChan   chan struct{}
 
 	httpClient *http.Client
-	m3u8Regex  *regexp.Regexp
 
 	mu sync.RWMutex
 }
@@ -45,7 +43,6 @@ func NewMinuteWatcher(
 		settings:   settings,
 		stopChan:   make(chan struct{}),
 		httpClient: &http.Client{Timeout: 20 * time.Second},
-		m3u8Regex:  regexp.MustCompile(`(?m)^[^#].*\.m3u8$`),
 	}
 }
 
@@ -108,6 +105,12 @@ func (w *MinuteWatcher) processWatching() {
 		return
 	}
 
+	var watchingNames []string
+	for _, idx := range watching {
+		watchingNames = append(watchingNames, w.streamers[idx].Username)
+	}
+	slog.Debug("Watching streams", "count", len(watching), "max", constants.MaxSimultaneousStreams, "streamers", watchingNames)
+
 	sleepBetween := time.Duration(w.settings.MinuteWatchedInterval) * time.Second / time.Duration(len(watching))
 
 	for _, idx := range watching {
@@ -116,6 +119,7 @@ func (w *MinuteWatcher) processWatching() {
 		if err := w.sendMinuteWatched(streamer); err != nil {
 			slog.Debug("Failed to send minute watched", "streamer", streamer.Username, "error", err)
 		} else {
+			slog.Debug("Sent minute watched", "streamer", streamer.Username, "minutesWatched", streamer.Stream.MinuteWatched)
 			streamer.Stream.UpdateMinuteWatched()
 		}
 
@@ -255,13 +259,8 @@ func (w *MinuteWatcher) sendMinuteWatched(streamer *models.Streamer) error {
 		return fmt.Errorf("failed to get playback token: %w", err)
 	}
 
-	streamURL := w.getLowestQualityStreamURL(streamer.Username, sig, token)
-	if streamURL != "" {
-		resp, err := w.httpClient.Get(streamURL)
-		if err == nil {
-			_, _ = io.Copy(io.Discard, resp.Body)
-			resp.Body.Close()
-		}
+	if err := w.simulateWatching(streamer.Username, sig, token); err != nil {
+		slog.Debug("Failed to simulate watching", "streamer", streamer.Username, "error", err)
 	}
 
 	if streamer.Stream.SpadeURL == "" {
@@ -294,31 +293,87 @@ func (w *MinuteWatcher) sendMinuteWatched(streamer *models.Streamer) error {
 	return nil
 }
 
-func (w *MinuteWatcher) getLowestQualityStreamURL(channel, sig, token string) string {
+func (w *MinuteWatcher) simulateWatching(channel, sig, token string) error {
 	playlistURL := fmt.Sprintf("%s/api/channel/hls/%s.m3u8", constants.UsherURL, channel)
 
 	params := url.Values{
-		"sig":          {sig},
-		"token":        {token},
-		"player_type":  {"site"},
-		"allow_source": {"true"},
+		"sig":   {sig},
+		"token": {token},
 	}
 
 	resp, err := w.httpClient.Get(playlistURL + "?" + params.Encode())
 	if err != nil {
-		return ""
+		return fmt.Errorf("failed to get playlist: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("playlist request failed with status %d", resp.StatusCode)
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return ""
+		return fmt.Errorf("failed to read playlist: %w", err)
 	}
 
-	matches := w.m3u8Regex.FindAllString(string(body), -1)
-	if len(matches) == 0 {
-		return ""
+	lines := strings.Split(string(body), "\n")
+	var lowestQualityURL string
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(line, "http") {
+			lowestQualityURL = line
+			break
+		}
 	}
 
-	return matches[len(matches)-1]
+	if lowestQualityURL == "" {
+		return fmt.Errorf("no stream URL found in playlist")
+	}
+
+	streamListResp, err := w.httpClient.Get(lowestQualityURL)
+	if err != nil {
+		return fmt.Errorf("failed to get stream list: %w", err)
+	}
+	defer streamListResp.Body.Close()
+
+	if streamListResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("stream list request failed with status %d", streamListResp.StatusCode)
+	}
+
+	streamListBody, err := io.ReadAll(streamListResp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read stream list: %w", err)
+	}
+
+	streamLines := strings.Split(string(streamListBody), "\n")
+	var segmentURL string
+	for i := len(streamLines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(streamLines[i])
+		if strings.HasPrefix(line, "http") {
+			segmentURL = line
+			break
+		}
+	}
+
+	if segmentURL == "" {
+		return fmt.Errorf("no segment URL found")
+	}
+
+	req, err := http.NewRequest("HEAD", segmentURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create HEAD request: %w", err)
+	}
+	req.Header.Set("User-Agent", constants.TVUserAgent)
+
+	headResp, err := w.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("HEAD request failed: %w", err)
+	}
+	defer headResp.Body.Close()
+
+	if headResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("HEAD request returned status %d", headResp.StatusCode)
+	}
+
+	return nil
 }
