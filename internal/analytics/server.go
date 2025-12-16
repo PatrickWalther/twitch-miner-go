@@ -275,7 +275,7 @@ func (s *AnalyticsServer) handleAPIStreamers(w http.ResponseWriter, r *http.Requ
 
 func (s *AnalyticsServer) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte("Connected"))
+	_, _ = w.Write([]byte("Connected"))
 }
 
 func (s *AnalyticsServer) getStreamerInfos() []StreamerInfo {
@@ -333,9 +333,7 @@ func (s *AnalyticsServer) renderPage(w http.ResponseWriter, page string, data in
 	}
 }
 
-func (s *AnalyticsServer) handleIndex(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/", http.StatusMovedPermanently)
-}
+
 
 func (s *AnalyticsServer) handleStreamers(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
