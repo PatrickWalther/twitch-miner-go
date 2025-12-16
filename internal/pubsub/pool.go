@@ -1,0 +1,415 @@
+package pubsub
+
+import (
+	"log/slog"
+	"sync"
+	"time"
+
+	"github.com/patrickdappollonio/twitch-miner/internal/api"
+	"github.com/patrickdappollonio/twitch-miner/internal/constants"
+	"github.com/patrickdappollonio/twitch-miner/internal/models"
+)
+
+type MessageHandler func(msg *PubSubMessage, streamer *models.Streamer)
+
+type WebSocketPool struct {
+	clients    []*WebSocketClient
+	client     *api.TwitchClient
+	streamers  []*models.Streamer
+	authToken  string
+	predictions map[string]*models.EventPrediction
+
+	onMessage MessageHandler
+
+	mu sync.RWMutex
+}
+
+func NewWebSocketPool(twitchClient *api.TwitchClient, authToken string, streamers []*models.Streamer) *WebSocketPool {
+	return &WebSocketPool{
+		client:      twitchClient,
+		streamers:   streamers,
+		authToken:   authToken,
+		predictions: make(map[string]*models.EventPrediction),
+	}
+}
+
+func (p *WebSocketPool) SetMessageHandler(handler MessageHandler) {
+	p.onMessage = handler
+}
+
+func (p *WebSocketPool) Submit(topic Topic) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if len(p.clients) == 0 || p.clients[len(p.clients)-1].TopicCount() >= constants.MaxTopicsPerConnection {
+		ws := NewWebSocketClient(len(p.clients), p.authToken, p.handleMessage, p.handleError)
+		if err := ws.Connect(); err != nil {
+			return err
+		}
+		p.clients = append(p.clients, ws)
+	}
+
+	p.clients[len(p.clients)-1].Listen(topic)
+	return nil
+}
+
+func (p *WebSocketPool) Close() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, ws := range p.clients {
+		ws.Close()
+	}
+	p.clients = nil
+}
+
+func (p *WebSocketPool) findStreamer(channelID string) *models.Streamer {
+	for _, s := range p.streamers {
+		if s.ChannelID == channelID {
+			return s
+		}
+	}
+	return nil
+}
+
+func (p *WebSocketPool) handleMessage(msg *PubSubMessage) {
+	streamer := p.findStreamer(msg.ChannelID)
+	if streamer == nil {
+		return
+	}
+
+	switch msg.Topic.Type {
+	case TopicCommunityPointsUser:
+		p.handleCommunityPointsUser(msg, streamer)
+	case TopicVideoPlaybackByID:
+		p.handleVideoPlayback(msg, streamer)
+	case TopicRaid:
+		p.handleRaid(msg, streamer)
+	case TopicCommunityMomentsChannel:
+		p.handleMoment(msg, streamer)
+	case TopicPredictionsChannel:
+		p.handlePredictionChannel(msg, streamer)
+	case TopicPredictionsUser:
+		p.handlePredictionUser(msg, streamer)
+	case TopicCommunityPointsChannel:
+		p.handleCommunityPointsChannel(msg, streamer)
+	}
+
+	if p.onMessage != nil {
+		p.onMessage(msg, streamer)
+	}
+}
+
+func (p *WebSocketPool) handleCommunityPointsUser(msg *PubSubMessage, streamer *models.Streamer) {
+	switch msg.Type {
+	case "points-earned", "points-spent":
+		if msg.Data == nil {
+			return
+		}
+		if balance, ok := msg.Data["balance"].(map[string]interface{}); ok {
+			if bal, ok := balance["balance"].(float64); ok {
+				streamer.SetChannelPoints(int(bal))
+			}
+		}
+
+		if msg.Type == "points-earned" {
+			if pointGain, ok := msg.Data["point_gain"].(map[string]interface{}); ok {
+				earned := 0
+				reasonCode := ""
+				if pts, ok := pointGain["total_points"].(float64); ok {
+					earned = int(pts)
+				}
+				if rc, ok := pointGain["reason_code"].(string); ok {
+					reasonCode = rc
+				}
+				slog.Info("Points earned",
+					"streamer", streamer.Username,
+					"points", earned,
+					"reason", reasonCode,
+				)
+				streamer.UpdateHistory(reasonCode, earned)
+			}
+		}
+
+	case "claim-available":
+		if msg.Data == nil {
+			return
+		}
+		if claim, ok := msg.Data["claim"].(map[string]interface{}); ok {
+			if claimID, ok := claim["id"].(string); ok {
+				p.client.ClaimBonus(streamer, claimID)
+			}
+		}
+	}
+}
+
+func (p *WebSocketPool) handleVideoPlayback(msg *PubSubMessage, streamer *models.Streamer) {
+	switch msg.Type {
+	case "stream-up":
+		streamer.StreamUpTime = time.Now()
+	case "stream-down":
+		if streamer.GetIsOnline() {
+			streamer.SetOffline()
+			slog.Info("Streamer went offline", "streamer", streamer.Username)
+		}
+	case "viewcount":
+		if streamer.StreamUpElapsed() {
+			p.client.CheckStreamerOnline(streamer)
+		}
+	}
+}
+
+func (p *WebSocketPool) handleRaid(msg *PubSubMessage, streamer *models.Streamer) {
+	if msg.Type != "raid_update_v2" || !streamer.Settings.FollowRaid {
+		return
+	}
+
+	raidData, ok := msg.Message["raid"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	raidID, _ := raidData["id"].(string)
+	targetLogin, _ := raidData["target_login"].(string)
+
+	if raidID != "" && targetLogin != "" {
+		raid := &models.Raid{
+			RaidID:      raidID,
+			TargetLogin: targetLogin,
+		}
+		p.client.JoinRaid(streamer, raid)
+	}
+}
+
+func (p *WebSocketPool) handleMoment(msg *PubSubMessage, streamer *models.Streamer) {
+	if msg.Type != "active" || !streamer.Settings.ClaimMoments {
+		return
+	}
+
+	if msg.Data == nil {
+		return
+	}
+
+	if momentID, ok := msg.Data["moment_id"].(string); ok {
+		p.client.ClaimMoment(streamer, momentID)
+	}
+}
+
+func (p *WebSocketPool) handlePredictionChannel(msg *PubSubMessage, streamer *models.Streamer) {
+	if !streamer.Settings.MakePredictions {
+		return
+	}
+
+	if msg.Data == nil {
+		return
+	}
+
+	eventData, ok := msg.Data["event"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	eventID, _ := eventData["id"].(string)
+	eventStatus, _ := eventData["status"].(string)
+
+	switch msg.Type {
+	case "event-created":
+		p.mu.RLock()
+		_, exists := p.predictions[eventID]
+		p.mu.RUnlock()
+
+		if exists || eventStatus != "ACTIVE" {
+			return
+		}
+
+		title, _ := eventData["title"].(string)
+		createdAtStr, _ := eventData["created_at"].(string)
+		predictionWindowSeconds, _ := eventData["prediction_window_seconds"].(float64)
+		outcomes, _ := eventData["outcomes"].([]interface{})
+
+		createdAt, _ := time.Parse(time.RFC3339, createdAtStr)
+
+		adjustedWindow := streamer.GetPredictionWindow(predictionWindowSeconds)
+
+		event := models.NewEventPrediction(
+			streamer,
+			eventID,
+			title,
+			createdAt,
+			adjustedWindow,
+			eventStatus,
+			outcomes,
+		)
+
+		if !streamer.GetIsOnline() {
+			return
+		}
+
+		closingBetAfter := event.ClosingBetAfter(time.Now())
+		if closingBetAfter <= 0 {
+			return
+		}
+
+		if streamer.Settings.Bet.MinimumPoints > 0 &&
+			streamer.GetChannelPoints() <= streamer.Settings.Bet.MinimumPoints {
+			slog.Info("Not enough points for prediction",
+				"streamer", streamer.Username,
+				"points", streamer.GetChannelPoints(),
+				"minimum", streamer.Settings.Bet.MinimumPoints,
+			)
+			return
+		}
+
+		p.mu.Lock()
+		p.predictions[eventID] = event
+		p.mu.Unlock()
+
+		slog.Info("Prediction event scheduled",
+			"streamer", streamer.Username,
+			"event", title,
+			"placeIn", closingBetAfter,
+		)
+
+		go func() {
+			time.Sleep(time.Duration(closingBetAfter) * time.Second)
+			p.mu.RLock()
+			evt, exists := p.predictions[eventID]
+			p.mu.RUnlock()
+
+			if exists && evt.Status == models.PredictionActive {
+				if err := p.client.MakePrediction(evt); err != nil {
+					slog.Error("Failed to make prediction", "error", err)
+				}
+			}
+		}()
+
+	case "event-updated":
+		p.mu.RLock()
+		event, exists := p.predictions[eventID]
+		p.mu.RUnlock()
+
+		if !exists {
+			return
+		}
+
+		event.Status = models.PredictionStatus(eventStatus)
+
+		if !event.BetPlaced && event.Bet.Decision.ID == "" {
+			if outcomes, ok := eventData["outcomes"].([]interface{}); ok {
+				event.Bet.UpdateOutcomes(outcomes)
+			}
+		}
+	}
+}
+
+func (p *WebSocketPool) handlePredictionUser(msg *PubSubMessage, streamer *models.Streamer) {
+	if msg.Data == nil {
+		return
+	}
+
+	prediction, ok := msg.Data["prediction"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	eventID, _ := prediction["event_id"].(string)
+
+	p.mu.RLock()
+	event, exists := p.predictions[eventID]
+	p.mu.RUnlock()
+
+	if !exists {
+		return
+	}
+
+	switch msg.Type {
+	case "prediction-made":
+		event.BetConfirmed = true
+		slog.Info("Prediction confirmed", "event", event.Title)
+
+	case "prediction-result":
+		if !event.BetConfirmed {
+			return
+		}
+
+		result, ok := prediction["result"].(map[string]interface{})
+		if !ok {
+			return
+		}
+
+		placed, won, gained := event.ParseResult(result)
+		_ = placed
+		_ = won
+
+		slog.Info("Prediction result",
+			"event", event.Title,
+			"result", event.Result.Type,
+			"gained", gained,
+		)
+
+		streamer.UpdateHistory("PREDICTION", gained)
+
+		if event.Result.Type == models.ResultRefund {
+			streamer.UpdateHistoryWithCounter("REFUND", -placed, -1)
+		} else if event.Result.Type == models.ResultWin {
+			streamer.UpdateHistoryWithCounter("PREDICTION", -won, -1)
+		}
+	}
+}
+
+func (p *WebSocketPool) handleCommunityPointsChannel(msg *PubSubMessage, streamer *models.Streamer) {
+	if !streamer.Settings.CommunityGoals {
+		return
+	}
+
+	if msg.Data == nil {
+		return
+	}
+
+	goalData, ok := msg.Data["community_goal"].(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	goal := models.CommunityGoalFromPubSub(goalData)
+
+	switch msg.Type {
+	case "community-goal-created":
+		streamer.AddCommunityGoal(goal)
+	case "community-goal-updated":
+		streamer.UpdateCommunityGoal(goal)
+	case "community-goal-deleted":
+		if goalID, ok := goalData["id"].(string); ok {
+			streamer.DeleteCommunityGoal(goalID)
+		}
+	}
+
+	if msg.Type == "community-goal-updated" || msg.Type == "community-goal-created" {
+		p.contributeToGoals(streamer)
+	}
+}
+
+func (p *WebSocketPool) contributeToGoals(streamer *models.Streamer) {
+	for _, goal := range streamer.CommunityGoals {
+		if goal.Status == models.CommunityGoalStarted && goal.IsInStock {
+			amountLeft := goal.AmountLeft()
+			if amountLeft > 0 && streamer.GetChannelPoints() > 0 {
+				amount := min(amountLeft, streamer.GetChannelPoints())
+				if amount > 0 {
+					p.client.ContributeToCommunityGoal(streamer, goal.GoalID, goal.Title, amount)
+				}
+			}
+		}
+	}
+}
+
+func (p *WebSocketPool) handleError(err error) {
+	slog.Error("WebSocket error", "error", err)
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
