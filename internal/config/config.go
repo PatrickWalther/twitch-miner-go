@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/patrickdappollonio/twitch-miner/internal/models"
+	"github.com/PatrickWalther/twitch-miner-go/internal/models"
 )
 
 type Priority string

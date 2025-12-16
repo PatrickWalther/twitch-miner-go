@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/patrickdappollonio/twitch-miner/internal/models"
+	"github.com/PatrickWalther/twitch-miner-go/internal/models"
 )
 
 type ChatManager struct {

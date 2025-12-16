@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/patrickdappollonio/twitch-miner/internal/constants"
+	"github.com/PatrickWalther/twitch-miner-go/internal/constants"
 )
 
 var (

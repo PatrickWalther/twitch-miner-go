@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/patrickdappollonio/twitch-miner/internal/config"
+	"github.com/PatrickWalther/twitch-miner-go/internal/config"
 )
 
 type Logger struct {

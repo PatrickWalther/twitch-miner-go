@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/patrickdappollonio/twitch-miner/internal/constants"
-	"github.com/patrickdappollonio/twitch-miner/internal/models"
+	"github.com/PatrickWalther/twitch-miner-go/internal/constants"
+	"github.com/PatrickWalther/twitch-miner-go/internal/models"
 )
 
 type IRCClient struct {

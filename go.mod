@@ -1,4 +1,4 @@
-module github.com/patrickdappollonio/twitch-miner
+module github.com/PatrickWalther/twitch-miner-go
 
 go 1.23
 
