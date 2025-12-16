@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{block "title" .}}Twitch Points Miner{{end}}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+        :root {
+            --pico-primary: #9146ff;
+            --pico-primary-hover: #772ce8;
+            --twitch-purple: #9146ff;
+            --twitch-purple-dark: #772ce8;
+        }
+        
+        body {
+            background: #0e0e10;
+        }
+        
+        nav {
+            background: #18181b;
+            border-bottom: 1px solid #303033;
+        }
+        
+        .brand {
+            color: var(--twitch-purple) !important;
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+        
+        .streamer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .streamer-card {
+            background: #18181b;
+            border: 1px solid #303033;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        
+        .streamer-card:hover {
+            border-color: var(--twitch-purple);
+            transform: translateY(-2px);
+        }
+        
+        .streamer-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: var(--twitch-purple);
+        }
+        
+        .streamer-card .points {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #efeff1;
+        }
+        
+        .streamer-card .points-label {
+            color: #adadb8;
+            font-size: 0.875rem;
+        }
+        
+        .streamer-card .last-activity {
+            color: #adadb8;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        
+        .stats-row {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: #18181b;
+            border: 1px solid #303033;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            flex: 1;
+            text-align: center;
+        }
+        
+        .stat-card .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--twitch-purple);
+        }
+        
+        .stat-card .label {
+            color: #adadb8;
+            font-size: 0.875rem;
+        }
+        
+        .chart-container {
+            background: #18181b;
+            border: 1px solid #303033;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #adadb8;
+            text-decoration: none;
+            margin-bottom: 1rem;
+        }
+        
+        .back-link:hover {
+            color: var(--twitch-purple);
+        }
+        
+        .htmx-request .htmx-indicator {
+            display: inline-block;
+        }
+        
+        .htmx-indicator {
+            display: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li><a href="/" class="brand">⚡ Twitch Points Miner</a></li>
+        </ul>
+        <ul>
+            <li><small>User: {{.Username}}</small></li>
+        </ul>
+    </nav>
+    
+    <main class="container">
+        {{block "content" .}}{{end}}
+    </main>
+    
+    <footer class="container">
+        <small style="color: #adadb8;">
+            Auto-refresh: {{.RefreshMinutes}} min | 
+            <span hx-get="/api/status" hx-trigger="every 30s" hx-swap="innerHTML">
+                Connected
+            </span>
+        </small>
+    </footer>
+    
+    {{block "scripts" .}}{{end}}
+</body>
+</html>

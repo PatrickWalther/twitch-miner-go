@@ -1,0 +1,45 @@
+{{define "title"}}Dashboard - Twitch Points Miner{{end}}
+
+{{define "content"}}
+<h1>Dashboard</h1>
+
+<div class="stats-row">
+    <article class="stat-card">
+        <div class="value">{{.TotalPoints}}</div>
+        <div class="label">Total Points</div>
+    </article>
+    <article class="stat-card">
+        <div class="value">{{.StreamerCount}}</div>
+        <div class="label">Streamers</div>
+    </article>
+    <article class="stat-card">
+        <div class="value">{{.PointsToday}}</div>
+        <div class="label">Points Today</div>
+    </article>
+</div>
+
+<section 
+    hx-get="/api/streamers" 
+    hx-trigger="load, every {{.RefreshMinutes}}m"
+    hx-swap="innerHTML"
+>
+    <div class="loading">Loading streamers...</div>
+</section>
+{{end}}
+
+{{define "scripts"}}
+<script>
+    function formatNumber(num) {
+        return new Intl.NumberFormat().format(num);
+    }
+    
+    function timeAgo(timestamp) {
+        if (!timestamp) return 'Never';
+        const seconds = Math.floor((Date.now() - timestamp) / 1000);
+        if (seconds < 60) return 'Just now';
+        if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+        if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+        return Math.floor(seconds / 86400) + 'd ago';
+    }
+</script>
+{{end}}
