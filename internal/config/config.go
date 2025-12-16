@@ -97,7 +97,7 @@ func DefaultLoggerSettings() LoggerSettings {
 
 func DefaultAnalyticsSettings() AnalyticsSettings {
 	return AnalyticsSettings{
-		Host:    "127.0.0.1",
+		Host:    "0.0.0.0",
 		Port:    5000,
 		Refresh: 5,
 		DaysAgo: 7,
