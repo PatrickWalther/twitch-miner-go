@@ -137,7 +137,9 @@ func (p *WebSocketPool) handleCommunityPointsUser(msg *PubSubMessage, streamer *
 		}
 		if claim, ok := msg.Data["claim"].(map[string]interface{}); ok {
 			if claimID, ok := claim["id"].(string); ok {
-				p.client.ClaimBonus(streamer, claimID)
+				if err := p.client.ClaimBonus(streamer, claimID); err != nil {
+					slog.Error("Failed to claim bonus", "error", err)
+				}
 			}
 		}
 	}
@@ -177,7 +179,9 @@ func (p *WebSocketPool) handleRaid(msg *PubSubMessage, streamer *models.Streamer
 			RaidID:      raidID,
 			TargetLogin: targetLogin,
 		}
-		p.client.JoinRaid(streamer, raid)
+		if err := p.client.JoinRaid(streamer, raid); err != nil {
+			slog.Error("Failed to join raid", "error", err)
+		}
 	}
 }
 
@@ -191,7 +195,9 @@ func (p *WebSocketPool) handleMoment(msg *PubSubMessage, streamer *models.Stream
 	}
 
 	if momentID, ok := msg.Data["moment_id"].(string); ok {
-		p.client.ClaimMoment(streamer, momentID)
+		if err := p.client.ClaimMoment(streamer, momentID); err != nil {
+			slog.Error("Failed to claim moment", "error", err)
+		}
 	}
 }
 
@@ -396,7 +402,9 @@ func (p *WebSocketPool) contributeToGoals(streamer *models.Streamer) {
 			if amountLeft > 0 && streamer.GetChannelPoints() > 0 {
 				amount := min(amountLeft, streamer.GetChannelPoints())
 				if amount > 0 {
-					p.client.ContributeToCommunityGoal(streamer, goal.GoalID, goal.Title, amount)
+					if err := p.client.ContributeToCommunityGoal(streamer, goal.GoalID, goal.Title, amount); err != nil {
+						slog.Error("Failed to contribute to community goal", "error", err)
+					}
 				}
 			}
 		}

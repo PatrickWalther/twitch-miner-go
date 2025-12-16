@@ -259,7 +259,7 @@ func (w *MinuteWatcher) sendMinuteWatched(streamer *models.Streamer) error {
 	if streamURL != "" {
 		resp, err := w.httpClient.Get(streamURL)
 		if err == nil {
-			io.Copy(io.Discard, resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
 		}
 	}

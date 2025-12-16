@@ -38,7 +38,7 @@ func NewIRCClient(username, token string, streamer *models.Streamer) *IRCClient 
 }
 
 func (c *IRCClient) Connect() error {
-	addr := fmt.Sprintf("%s:%d", constants.IRCURL, constants.IRCPort)
+	addr := net.JoinHostPort(constants.IRCURL, fmt.Sprintf("%d", constants.IRCPort))
 	conn, err := net.DialTimeout("tcp", addr, 30*time.Second)
 	if err != nil {
 		return fmt.Errorf("failed to connect to IRC: %w", err)
@@ -127,7 +127,7 @@ func (c *IRCClient) readLoop() {
 func (c *IRCClient) handleMessage(line string) {
 	if strings.HasPrefix(line, "PING") {
 		pongMsg := strings.Replace(line, "PING", "PONG", 1)
-		c.send(pongMsg)
+		_ = c.send(pongMsg)
 		return
 	}
 
@@ -176,7 +176,7 @@ func (c *IRCClient) Stop() {
 	c.mu.RUnlock()
 
 	if conn != nil {
-		c.send("PART " + c.channel)
+		_ = c.send("PART " + c.channel)
 		conn.Close()
 	}
 

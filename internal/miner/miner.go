@@ -81,11 +81,17 @@ func (m *Miner) Run() error {
 func (m *Miner) initialize() error {
 	slog.Info("Initializing Twitch Channel Points Miner")
 
-	os.MkdirAll("cookies", 0755)
-	os.MkdirAll("logs", 0755)
+	if err := os.MkdirAll("cookies", 0755); err != nil {
+		return fmt.Errorf("failed to create cookies directory: %w", err)
+	}
+	if err := os.MkdirAll("logs", 0755); err != nil {
+		return fmt.Errorf("failed to create logs directory: %w", err)
+	}
 
 	if m.config.EnableAnalytics {
-		os.MkdirAll("analytics", 0755)
+		if err := os.MkdirAll("analytics", 0755); err != nil {
+			return fmt.Errorf("failed to create analytics directory: %w", err)
+		}
 	}
 
 	return nil
@@ -201,22 +207,22 @@ func (m *Miner) subscribeToTopics() error {
 	for _, streamer := range m.streamers {
 		channelID := streamer.ChannelID
 
-		m.wsPool.Submit(pubsub.NewTopic(pubsub.TopicVideoPlaybackByID, channelID))
+		_ = m.wsPool.Submit(pubsub.NewTopic(pubsub.TopicVideoPlaybackByID, channelID))
 
 		if streamer.Settings.FollowRaid {
-			m.wsPool.Submit(pubsub.NewTopic(pubsub.TopicRaid, channelID))
+			_ = m.wsPool.Submit(pubsub.NewTopic(pubsub.TopicRaid, channelID))
 		}
 
 		if streamer.Settings.MakePredictions {
-			m.wsPool.Submit(pubsub.NewTopic(pubsub.TopicPredictionsChannel, channelID))
+			_ = m.wsPool.Submit(pubsub.NewTopic(pubsub.TopicPredictionsChannel, channelID))
 		}
 
 		if streamer.Settings.ClaimMoments {
-			m.wsPool.Submit(pubsub.NewTopic(pubsub.TopicCommunityMomentsChannel, channelID))
+			_ = m.wsPool.Submit(pubsub.NewTopic(pubsub.TopicCommunityMomentsChannel, channelID))
 		}
 
 		if streamer.Settings.CommunityGoals {
-			m.wsPool.Submit(pubsub.NewTopic(pubsub.TopicCommunityPointsChannel, channelID))
+			_ = m.wsPool.Submit(pubsub.NewTopic(pubsub.TopicCommunityPointsChannel, channelID))
 		}
 	}
 
@@ -361,6 +367,8 @@ func (m *Miner) printSessionReport() {
 
 func generateDeviceID() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		return "00000000000000000000000000000000"
+	}
 	return hex.EncodeToString(b)
 }
