@@ -349,18 +349,22 @@ func (c *TwitchClient) CheckStreamerOnline(streamer *models.Streamer) {
 
 	if !streamer.GetIsOnline() {
 		if err := c.GetSpadeURL(streamer); err != nil {
+			slog.Debug("Failed to get spade URL", "streamer", streamer.Username, "error", err)
 			streamer.SetOffline()
 			return
 		}
 
 		if err := c.UpdateStream(streamer); err != nil {
+			slog.Debug("Failed to update stream", "streamer", streamer.Username, "error", err)
 			streamer.SetOffline()
 			return
 		}
 
 		streamer.SetOnline()
+		slog.Info("Streamer is online", "streamer", streamer.Username)
 	} else {
 		if err := c.UpdateStream(streamer); err != nil {
+			slog.Info("Streamer went offline", "streamer", streamer.Username)
 			streamer.SetOffline()
 		}
 	}
@@ -587,16 +591,25 @@ func (c *TwitchClient) GetPlaybackAccessToken(username string) (string, string, 
 
 	data, ok := resp["data"].(map[string]interface{})
 	if !ok {
+		slog.Debug("PlaybackAccessToken: no data", "username", username, "response", resp)
 		return "", "", fmt.Errorf("no data in response")
 	}
 
-	sat, ok := data["streamAccessToken"].(map[string]interface{})
+	sat, ok := data["streamPlaybackAccessToken"].(map[string]interface{})
 	if !ok || sat == nil {
-		return "", "", fmt.Errorf("no stream access token")
+		sat, ok = data["streamAccessToken"].(map[string]interface{})
+		if !ok || sat == nil {
+			slog.Debug("PlaybackAccessToken: no token found", "username", username, "data", data)
+			return "", "", fmt.Errorf("no stream access token")
+		}
 	}
 
 	signature, _ := sat["signature"].(string)
 	value, _ := sat["value"].(string)
+
+	if signature == "" || value == "" {
+		return "", "", fmt.Errorf("empty stream access token")
+	}
 
 	return signature, value, nil
 }

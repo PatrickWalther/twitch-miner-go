@@ -17,7 +17,7 @@ const (
 
 	DefaultClientVersion = "ef928475-9403-42f2-8a34-55784bd08e16"
 
-	TVUserAgent = "Mozilla/5.0 (Linux; Android 7.1; Smart Box C1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+	TVUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
 
 	MaxTopicsPerConnection = 50
 	MaxSimultaneousStreams = 2
