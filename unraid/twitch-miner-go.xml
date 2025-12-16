@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>twitch-miner-go</Name>
+  <Repository>thegame402/twitch-miner-go:latest</Repository>
+  <Registry>https://hub.docker.com/r/thegame402/twitch-miner-go</Registry>
+  <Branch>
+    <Tag>latest</Tag>
+    <TagDescription>Latest stable release</TagDescription>
+  </Branch>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/PatrickWalther/twitch-miner-go/issues</Support>
+  <Project>https://github.com/PatrickWalther/twitch-miner-go</Project>
+  <Overview>
+    Twitch Channel Points Miner - Automatically earn Twitch channel points by simulating viewer presence.
+    
+    Features:
+    - Passive point farming (+10-12 every 5 minutes)
+    - Automatic bonus claiming (+50 points)
+    - Watch streak detection (+450 points)
+    - Raid following (+250 points)
+    - Prediction betting with multiple strategies
+    - Game drops tracking and claiming
+    - Moments claiming
+    - Community goals contribution
+    - Multi-streamer support with priority scheduling
+    - Real-time analytics dashboard
+    
+    First run: The container will prompt for Twitch authentication via device flow.
+    Visit https://www.twitch.tv/activate and enter the code shown in the logs.
+  </Overview>
+  <Category>Tools: MediaApp:Other</Category>
+  <WebUI>http://[IP]:[PORT:5000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/PatrickWalther/twitch-miner-go/main/unraid/twitch-miner-go.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/PatrickWalther/twitch-miner-go/main/unraid/icon.png</Icon>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
+  <DateInstalled></DateInstalled>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="Config Path" Target="/config" Default="/mnt/user/appdata/twitch-miner-go/config" Mode="rw" Description="Path to configuration directory. Place your config.json here." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/twitch-miner-go/config</Config>
+  <Config Name="Cookies Path" Target="/cookies" Default="/mnt/user/appdata/twitch-miner-go/cookies" Mode="rw" Description="Path to store authentication cookies/tokens. Persists login between restarts." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/twitch-miner-go/cookies</Config>
+  <Config Name="Logs Path" Target="/logs" Default="/mnt/user/appdata/twitch-miner-go/logs" Mode="rw" Description="Path to store log files." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/twitch-miner-go/logs</Config>
+  <Config Name="Analytics Path" Target="/analytics" Default="/mnt/user/appdata/twitch-miner-go/analytics" Mode="rw" Description="Path to store analytics data." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/twitch-miner-go/analytics</Config>
+  <Config Name="Analytics WebUI Port" Target="5000" Default="5000" Mode="tcp" Description="Port for the analytics web dashboard. Only needed if enableAnalytics is true in config." Type="Port" Display="always" Required="false" Mask="false">5000</Config>
+  <Config Name="Timezone" Target="TZ" Default="America/New_York" Mode="" Description="Timezone for log timestamps." Type="Variable" Display="advanced" Required="false" Mask="false">America/New_York</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID for file permissions." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID for file permissions." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+</Container>
