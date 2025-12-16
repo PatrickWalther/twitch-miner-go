@@ -59,7 +59,9 @@ type StreamerInfo struct {
 
 func NewAnalyticsServer(settings config.AnalyticsSettings, username string, streamers []*models.Streamer) *AnalyticsServer {
 	basePath := filepath.Join("analytics", username)
-	os.MkdirAll(basePath, 0755)
+	if err := os.MkdirAll(basePath, 0755); err != nil {
+		slog.Error("Failed to create analytics directory", "path", basePath, "error", err)
+	}
 
 	return &AnalyticsServer{
 		host:      settings.Host,
@@ -140,7 +142,7 @@ func (s *AnalyticsServer) handleIndex(w http.ResponseWriter, r *http.Request) {
 </html>`, s.refresh*60, s.username)
 
 	w.Header().Set("Content-Type", "text/html")
-	w.Write([]byte(html))
+	_, _ = w.Write([]byte(html))
 }
 
 func (s *AnalyticsServer) handleStreamers(w http.ResponseWriter, r *http.Request) {
@@ -179,7 +181,7 @@ func (s *AnalyticsServer) handleStreamers(w http.ResponseWriter, r *http.Request
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(streamers)
+	_ = json.NewEncoder(w).Encode(streamers)
 }
 
 func (s *AnalyticsServer) handleJSON(w http.ResponseWriter, r *http.Request) {
@@ -198,7 +200,7 @@ func (s *AnalyticsServer) handleJSON(w http.ResponseWriter, r *http.Request) {
 	data = s.filterData(data, startDate, endDate)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 func (s *AnalyticsServer) handleJSONAll(w http.ResponseWriter, r *http.Request) {
@@ -226,7 +228,7 @@ func (s *AnalyticsServer) handleJSONAll(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (s *AnalyticsServer) readStreamerData(streamer string) StreamerData {
@@ -238,7 +240,7 @@ func (s *AnalyticsServer) readStreamerData(streamer string) StreamerData {
 	}
 
 	var result StreamerData
-	json.Unmarshal(data, &result)
+	_ = json.Unmarshal(data, &result)
 	return result
 }
 
@@ -288,7 +290,7 @@ func (s *AnalyticsServer) RecordPoints(streamer *models.Streamer, eventType stri
 	
 	var data StreamerData
 	if existing, err := os.ReadFile(path); err == nil {
-		json.Unmarshal(existing, &data)
+		_ = json.Unmarshal(existing, &data)
 	}
 
 	point := SeriesPoint{
@@ -303,7 +305,9 @@ func (s *AnalyticsServer) RecordPoints(streamer *models.Streamer, eventType stri
 		return
 	}
 
-	os.WriteFile(path, jsonData, 0644)
+	if err := os.WriteFile(path, jsonData, 0644); err != nil {
+		slog.Error("Failed to write analytics data", "path", path, "error", err)
+	}
 }
 
 func (s *AnalyticsServer) RecordAnnotation(streamer *models.Streamer, eventType, text string) {
@@ -326,7 +330,7 @@ func (s *AnalyticsServer) RecordAnnotation(streamer *models.Streamer, eventType,
 	
 	var data StreamerData
 	if existing, err := os.ReadFile(path); err == nil {
-		json.Unmarshal(existing, &data)
+		_ = json.Unmarshal(existing, &data)
 	}
 
 	annotation := Annotation{
@@ -344,5 +348,7 @@ func (s *AnalyticsServer) RecordAnnotation(streamer *models.Streamer, eventType,
 		return
 	}
 
-	os.WriteFile(path, jsonData, 0644)
+	if err := os.WriteFile(path, jsonData, 0644); err != nil {
+		slog.Error("Failed to write analytics annotation", "path", path, "error", err)
+	}
 }

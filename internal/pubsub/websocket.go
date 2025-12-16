@@ -135,7 +135,7 @@ func (ws *WebSocketClient) Listen(topic Topic) {
 		Data:  data,
 	}
 
-	ws.send(msg)
+	_ = ws.send(msg)
 }
 
 func (ws *WebSocketClient) send(msg WSMessage) error {
@@ -157,7 +157,7 @@ func (ws *WebSocketClient) send(msg WSMessage) error {
 
 func (ws *WebSocketClient) ping() {
 	msg := WSMessage{Type: "PING"}
-	ws.send(msg)
+	_ = ws.send(msg)
 
 	ws.mu.Lock()
 	ws.lastPing = time.Now()
@@ -328,7 +328,9 @@ func (ws *WebSocketClient) reconnect() {
 
 func generateNonce() string {
 	b := make([]byte, 15)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		return "000000000000000000000000000000"
+	}
 	return hex.EncodeToString(b)
 }
 

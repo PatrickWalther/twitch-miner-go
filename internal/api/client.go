@@ -2,6 +2,8 @@ package api
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -429,7 +431,9 @@ func (c *TwitchClient) LoadChannelPointsContext(streamer *models.Streamer) error
 
 	if availableClaim, ok := communityPoints["availableClaim"].(map[string]interface{}); ok && availableClaim != nil {
 		if claimID, ok := availableClaim["id"].(string); ok {
-			c.ClaimBonus(streamer, claimID)
+			if err := c.ClaimBonus(streamer, claimID); err != nil {
+				slog.Error("Failed to claim bonus", "error", err)
+			}
 		}
 	}
 
@@ -661,11 +665,9 @@ func (c *TwitchClient) ContributeToCommunityGoal(streamer *models.Streamer, goal
 }
 
 func generateHexString(length int) string {
-	const hexChars = "0123456789abcdef"
-	b := make([]byte, length*2)
-	for i := range b {
-		b[i] = hexChars[time.Now().UnixNano()%16]
-		time.Sleep(1)
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		return strings.Repeat("0", length*2)
 	}
-	return string(b)
+	return hex.EncodeToString(b)
 }
