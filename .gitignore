@@ -1,0 +1,33 @@
+# Binaries
+twitch-miner-go
+twitch-miner-go.exe
+dist/
+
+# Configuration (contains sensitive data)
+config.json
+cookies/
+*.cookies
+
+# Logs and analytics data
+logs/
+analytics/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+*.test
+*.out
+coverage.txt
+
+# Debug
+__debug_bin*
