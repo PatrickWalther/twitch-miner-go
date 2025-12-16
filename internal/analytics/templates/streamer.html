@@ -1,0 +1,191 @@
+{{define "title"}}{{.Streamer.Name}} - Twitch Points Miner{{end}}
+
+{{define "content"}}
+<a href="/" class="back-link">← Back to Dashboard</a>
+
+<h1 style="color: var(--twitch-purple);">{{.Streamer.Name}}</h1>
+
+<div class="stats-row">
+    <article class="stat-card">
+        <div class="value" id="current-points">{{.Streamer.Points}}</div>
+        <div class="label">Current Points</div>
+    </article>
+    <article class="stat-card">
+        <div class="value" id="points-gained">{{.PointsGained}}</div>
+        <div class="label">Points Gained ({{.DaysAgo}}d)</div>
+    </article>
+    <article class="stat-card">
+        <div class="value" id="data-points">{{.DataPoints}}</div>
+        <div class="label">Data Points</div>
+    </article>
+</div>
+
+<div class="chart-container">
+    <h3>Points Over Time</h3>
+    <div id="points-chart"></div>
+</div>
+
+<div class="chart-container" style="margin-top: 1rem;">
+    <h3>Date Range</h3>
+    <form id="date-filter" style="display: flex; gap: 1rem; align-items: end;">
+        <label>
+            Start Date
+            <input type="date" id="start-date" name="startDate" value="{{.StartDate}}">
+        </label>
+        <label>
+            End Date
+            <input type="date" id="end-date" name="endDate" value="{{.EndDate}}">
+        </label>
+        <button type="submit">Apply</button>
+    </form>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+    const streamerName = "{{.Streamer.Name}}";
+    let chart = null;
+    
+    async function loadChart(startDate, endDate) {
+        let url = '/json/' + streamerName;
+        const params = new URLSearchParams();
+        if (startDate) params.set('startDate', startDate);
+        if (endDate) params.set('endDate', endDate);
+        if (params.toString()) url += '?' + params.toString();
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        const series = data.series || [];
+        const annotations = data.annotations || [];
+        
+        const chartData = series.map(p => ({
+            x: p.x,
+            y: p.y
+        }));
+        
+        const xAxisAnnotations = annotations.map(a => ({
+            x: a.x,
+            borderColor: a.borderColor,
+            label: {
+                style: {
+                    color: '#000',
+                    background: a.borderColor
+                },
+                text: a.label.text
+            }
+        }));
+        
+        const options = {
+            series: [{
+                name: 'Points',
+                data: chartData
+            }],
+            chart: {
+                type: 'area',
+                height: 400,
+                background: 'transparent',
+                foreColor: '#adadb8',
+                toolbar: {
+                    show: true,
+                    tools: {
+                        download: false,
+                        selection: true,
+                        zoom: true,
+                        zoomin: true,
+                        zoomout: true,
+                        pan: true,
+                        reset: true
+                    }
+                },
+                animations: {
+                    enabled: true,
+                    easing: 'easeinout',
+                    speed: 300
+                }
+            },
+            colors: ['#9146ff'],
+            fill: {
+                type: 'gradient',
+                gradient: {
+                    shadeIntensity: 1,
+                    opacityFrom: 0.7,
+                    opacityTo: 0.2,
+                    stops: [0, 100]
+                }
+            },
+            stroke: {
+                curve: 'smooth',
+                width: 2
+            },
+            dataLabels: {
+                enabled: false
+            },
+            xaxis: {
+                type: 'datetime',
+                labels: {
+                    datetimeUTC: false
+                }
+            },
+            yaxis: {
+                labels: {
+                    formatter: function(val) {
+                        return new Intl.NumberFormat().format(val);
+                    }
+                }
+            },
+            tooltip: {
+                theme: 'dark',
+                x: {
+                    format: 'MMM dd, yyyy HH:mm'
+                },
+                y: {
+                    formatter: function(val, opts) {
+                        const point = series[opts.dataPointIndex];
+                        let label = new Intl.NumberFormat().format(val) + ' points';
+                        if (point && point.z) {
+                            label += ' (' + point.z + ')';
+                        }
+                        return label;
+                    }
+                }
+            },
+            annotations: {
+                xaxis: xAxisAnnotations
+            },
+            grid: {
+                borderColor: '#303033',
+                strokeDashArray: 4
+            }
+        };
+        
+        if (chart) {
+            chart.updateOptions(options);
+        } else {
+            chart = new ApexCharts(document.getElementById('points-chart'), options);
+            chart.render();
+        }
+    }
+    
+    document.getElementById('date-filter').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+        loadChart(startDate, endDate);
+    });
+    
+    // Initial load
+    loadChart(
+        document.getElementById('start-date').value,
+        document.getElementById('end-date').value
+    );
+    
+    // Auto-refresh chart
+    setInterval(function() {
+        loadChart(
+            document.getElementById('start-date').value,
+            document.getElementById('end-date').value
+        );
+    }, {{.RefreshMinutes}} * 60 * 1000);
+</script>
+{{end}}

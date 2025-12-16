@@ -1,0 +1,10 @@
+{{define "streamer_card"}}
+<a href="/streamer/{{.Name}}" style="text-decoration: none;">
+    <article class="streamer-card">
+        <h3>{{.Name}}</h3>
+        <div class="points">{{.PointsFormatted}}</div>
+        <div class="points-label">channel points</div>
+        <div class="last-activity">Last activity: {{.LastActivityFormatted}}</div>
+    </article>
+</a>
+{{end}}

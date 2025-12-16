@@ -10,7 +10,7 @@ cookies/
 
 # Logs and analytics data
 logs/
-analytics/
+/analytics/
 
 # IDE
 .idea/

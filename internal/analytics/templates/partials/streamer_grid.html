@@ -1,0 +1,16 @@
+{{define "streamer_grid"}}
+<div class="streamer-grid">
+    {{range .Streamers}}
+    <a href="/streamer/{{.Name}}" style="text-decoration: none;">
+        <article class="streamer-card">
+            <h3>{{.Name}}</h3>
+            <div class="points">{{.PointsFormatted}}</div>
+            <div class="points-label">channel points</div>
+            <div class="last-activity">Last activity: {{.LastActivityFormatted}}</div>
+        </article>
+    </a>
+    {{else}}
+    <p style="color: #adadb8;">No streamers tracked yet. Points will appear here as they are earned.</p>
+    {{end}}
+</div>
+{{end}}
