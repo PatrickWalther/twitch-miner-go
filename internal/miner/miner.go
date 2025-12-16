@@ -12,15 +12,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/patrickdappollonio/twitch-miner/internal/analytics"
-	"github.com/patrickdappollonio/twitch-miner/internal/api"
-	"github.com/patrickdappollonio/twitch-miner/internal/auth"
-	"github.com/patrickdappollonio/twitch-miner/internal/chat"
-	"github.com/patrickdappollonio/twitch-miner/internal/config"
-	"github.com/patrickdappollonio/twitch-miner/internal/drops"
-	"github.com/patrickdappollonio/twitch-miner/internal/models"
-	"github.com/patrickdappollonio/twitch-miner/internal/pubsub"
-	"github.com/patrickdappollonio/twitch-miner/internal/watcher"
+	"github.com/PatrickWalther/twitch-miner-go/internal/analytics"
+	"github.com/PatrickWalther/twitch-miner-go/internal/api"
+	"github.com/PatrickWalther/twitch-miner-go/internal/auth"
+	"github.com/PatrickWalther/twitch-miner-go/internal/chat"
+	"github.com/PatrickWalther/twitch-miner-go/internal/config"
+	"github.com/PatrickWalther/twitch-miner-go/internal/drops"
+	"github.com/PatrickWalther/twitch-miner-go/internal/models"
+	"github.com/PatrickWalther/twitch-miner-go/internal/pubsub"
+	"github.com/PatrickWalther/twitch-miner-go/internal/watcher"
 )
 
 type Miner struct {

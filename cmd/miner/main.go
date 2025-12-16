@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/patrickdappollonio/twitch-miner/internal/config"
-	"github.com/patrickdappollonio/twitch-miner/internal/logger"
-	"github.com/patrickdappollonio/twitch-miner/internal/miner"
-	"github.com/patrickdappollonio/twitch-miner/internal/models"
+	"github.com/PatrickWalther/twitch-miner-go/internal/config"
+	"github.com/PatrickWalther/twitch-miner-go/internal/logger"
+	"github.com/PatrickWalther/twitch-miner-go/internal/miner"
+	"github.com/PatrickWalther/twitch-miner-go/internal/models"
 )
 
 var (

@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/patrickdappollonio/twitch-miner/internal/config"
-	"github.com/patrickdappollonio/twitch-miner/internal/models"
+	"github.com/PatrickWalther/twitch-miner-go/internal/config"
+	"github.com/PatrickWalther/twitch-miner-go/internal/models"
 )
 
 //go:embed templates/*.html templates/partials/*.html
