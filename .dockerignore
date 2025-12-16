@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Build artifacts
+dist/
+*.exe
+twitch-miner-go
+
+# Configuration and data (should be mounted as volumes)
+config.json
+config.sample.json
+cookies/
+logs/
+analytics/
+
+# Documentation
+*.md
+!README.md
+LICENSE
+SPECIFICATIONS.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# CI/CD
+.github/
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Unraid
+unraid/

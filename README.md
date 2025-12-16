@@ -1,5 +1,9 @@
 # Twitch Channel Points Miner
 
+[![CI](https://github.com/PatrickWalther/twitch-miner-go/actions/workflows/ci.yml/badge.svg)](https://github.com/PatrickWalther/twitch-miner-go/actions/workflows/ci.yml)
+[![Release](https://github.com/PatrickWalther/twitch-miner-go/actions/workflows/release.yml/badge.svg)](https://github.com/PatrickWalther/twitch-miner-go/releases)
+[![Docker](https://img.shields.io/docker/v/thegame402/twitch-miner-go?label=docker)](https://hub.docker.com/r/thegame402/twitch-miner-go)
+
 A Go implementation of an automated Twitch channel points miner. This tool passively earns Twitch channel points by simulating viewer presence across multiple streams.
 
 ## Features
@@ -17,24 +21,59 @@ A Go implementation of an automated Twitch channel points miner. This tool passi
 
 ## Installation
 
+### Download Binary
+
+Download the latest release for your platform from the [Releases page](https://github.com/PatrickWalther/twitch-miner-go/releases).
+
+### Build from Source
+
 ```bash
 # Clone the repository
-git clone https://github.com/patrickdappollonio/twitch-miner.git
-cd twitch-miner
+git clone https://github.com/PatrickWalther/twitch-miner-go.git
+cd twitch-miner-go
 
-# Build the application
-go build -o twitch-miner ./cmd/miner
+# Build with version info
+make build
 
-# Or install directly
-go install ./cmd/miner
+# Or build manually
+go build -ldflags "-s -w -X main.version=$(git describe --tags)" -o twitch-miner-go ./cmd/miner
+
+# Build for all platforms
+make build-all
 ```
+
+### Docker
+
+```bash
+# Pull from Docker Hub
+docker pull thegame402/twitch-miner-go:latest
+
+# Or from GitHub Container Registry
+docker pull ghcr.io/patrickwalther/twitch-miner-go:latest
+
+# Run with volume mounts
+docker run -d \
+  -v /path/to/config:/config \
+  -v /path/to/cookies:/cookies \
+  -v /path/to/logs:/logs \
+  -v /path/to/analytics:/analytics \
+  -p 5000:5000 \
+  thegame402/twitch-miner-go:latest
+```
+
+### Unraid
+
+1. Go to Docker tab → Add Container → Template Repositories
+2. Add: `https://github.com/PatrickWalther/twitch-miner-go`
+3. Click "Add Container" and search for "twitch-miner-go"
+4. Configure paths and save
 
 ## Configuration
 
 Generate a sample configuration file:
 
 ```bash
-./twitch-miner -generate-config
+./twitch-miner-go -generate-config
 ```
 
 This creates `config.sample.json`. Rename it to `config.json` and update with your settings:
@@ -83,13 +122,13 @@ This creates `config.sample.json`. Rename it to `config.json` and update with yo
 
 ```bash
 # Run with default config.json
-./twitch-miner
+./twitch-miner-go
 
 # Run with custom config file
-./twitch-miner -config path/to/config.json
+./twitch-miner-go -config path/to/config.json
 
 # Enable debug logging
-./twitch-miner -debug
+./twitch-miner-go -debug
 ```
 
 On first run, you'll be prompted to authenticate via Twitch's device flow:
