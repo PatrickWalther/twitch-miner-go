@@ -30,11 +30,11 @@
     <form id="date-filter" style="display: flex; gap: 1rem; align-items: end;">
         <label>
             Start Date
-            <input type="date" id="start-date" name="startDate" value="{{.StartDate}}">
+            <input type="date" id="start-date" name="startDate">
         </label>
         <label>
             End Date
-            <input type="date" id="end-date" name="endDate" value="{{.EndDate}}">
+            <input type="date" id="end-date" name="endDate">
         </label>
         <button type="submit">Apply</button>
     </form>
@@ -269,6 +269,22 @@
             chart.render();
         }
     }
+    
+    // Set default dates in user's local timezone
+    function formatLocalDate(date) {
+        return date.toLocaleDateString('en-CA'); // Returns YYYY-MM-DD format
+    }
+    
+    function initDefaultDates() {
+        const now = new Date();
+        const startDate = new Date(now);
+        startDate.setDate(now.getDate() - {{.DaysAgo}});
+        
+        document.getElementById('start-date').value = formatLocalDate(startDate);
+        document.getElementById('end-date').value = formatLocalDate(now);
+    }
+    
+    initDefaultDates();
     
     document.getElementById('date-filter').addEventListener('submit', function(e) {
         e.preventDefault();

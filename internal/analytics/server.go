@@ -182,9 +182,6 @@ func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Requ
 		currentPoints = data.Series[len(data.Series)-1].Y
 	}
 
-	startDate := time.Now().AddDate(0, 0, -s.daysAgo).Format("2006-01-02")
-	endDate := time.Now().Format("2006-01-02")
-
 	startTS := time.Now().AddDate(0, 0, -s.daysAgo).UnixMilli()
 	pointsGained := 0
 	for i, p := range data.Series {
@@ -209,8 +206,6 @@ func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Requ
 		PointsGained: formatNumber(pointsGained),
 		DataPoints:   len(data.Series),
 		DaysAgo:      s.daysAgo,
-		StartDate:    startDate,
-		EndDate:      endDate,
 	}
 
 	s.renderPage(w, "streamer.html", pageData)
