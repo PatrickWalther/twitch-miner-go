@@ -4,7 +4,9 @@
 [![Release](https://github.com/PatrickWalther/twitch-miner-go/actions/workflows/release.yml/badge.svg)](https://github.com/PatrickWalther/twitch-miner-go/releases)
 [![Docker](https://img.shields.io/docker/v/thegame402/twitch-miner-go?label=docker)](https://hub.docker.com/r/thegame402/twitch-miner-go)
 
-A Go implementation of an automated Twitch channel points miner. This tool passively earns Twitch channel points by simulating viewer presence across multiple streams.
+A Go rewrite of [Twitch-Channel-Points-Miner-v2](https://github.com/rdavydov/Twitch-Channel-Points-Miner-v2), including most features except notifications. This rewrite was done for performance and size reasons - the Docker image is over 80x smaller (only 5.5MB) and standalone binaries for all major operating systems are available at just 5.5MB each.
+
+This tool passively earns Twitch channel points by simulating viewer presence across multiple streams.
 
 ## Features
 
@@ -225,7 +227,7 @@ All rate limits are configurable:
 
 ## License
 
-MIT License - See LICENSE file for details.
+GNU General Public License v3.0 - See LICENSE file for details.
 
 ## Disclaimer
 
