@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -218,8 +219,47 @@ func (s *AnalyticsServer) handleAPIStreamers(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	streamerMap := make(map[string]*models.Streamer)
+	configOrder := make(map[string]int)
+	for i, st := range s.streamers {
+		streamerMap[st.Username] = st
+		configOrder[st.Username] = i
+	}
+
+	var trackedLive, trackedOffline, untracked []StreamerInfo
+
+	for i := range streamers {
+		if st, ok := streamerMap[streamers[i].Name]; ok {
+			streamers[i].IsLive = st.GetIsOnline()
+			if streamers[i].IsLive {
+				streamers[i].LiveDuration = formatDuration(time.Since(st.GetOnlineAt()))
+				trackedLive = append(trackedLive, streamers[i])
+			} else {
+				offlineAt := st.GetOfflineAt()
+				if !offlineAt.IsZero() {
+					streamers[i].OfflineDuration = formatDuration(time.Since(offlineAt))
+				}
+				trackedOffline = append(trackedOffline, streamers[i])
+			}
+		} else {
+			untracked = append(untracked, streamers[i])
+		}
+	}
+
+	sort.Slice(trackedLive, func(i, j int) bool {
+		return configOrder[trackedLive[i].Name] < configOrder[trackedLive[j].Name]
+	})
+	sort.Slice(trackedOffline, func(i, j int) bool {
+		return configOrder[trackedOffline[i].Name] < configOrder[trackedOffline[j].Name]
+	})
+	sort.Slice(untracked, func(i, j int) bool {
+		return untracked[i].Name < untracked[j].Name
+	})
+
 	gridData := StreamerGridData{
-		Streamers: streamers,
+		TrackedLive:    trackedLive,
+		TrackedOffline: trackedOffline,
+		Untracked:      untracked,
 	}
 
 	w.Header().Set("Content-Type", "text/html")
@@ -457,4 +497,18 @@ func formatTimeAgo(timestamp int64) string {
 		return fmt.Sprintf("%dh ago", seconds/3600)
 	}
 	return fmt.Sprintf("%dd ago", seconds/86400)
+}
+
+func formatDuration(d time.Duration) string {
+	totalSeconds := int(d.Seconds())
+	if totalSeconds < 60 {
+		return fmt.Sprintf("%ds", totalSeconds)
+	}
+	if totalSeconds < 3600 {
+		return fmt.Sprintf("%dm", totalSeconds/60)
+	}
+	if totalSeconds < 86400 {
+		return fmt.Sprintf("%dh", totalSeconds/3600)
+	}
+	return fmt.Sprintf("%dd", totalSeconds/86400)
 }

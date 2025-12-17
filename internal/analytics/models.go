@@ -28,6 +28,9 @@ type StreamerInfo struct {
 	PointsFormatted       string `json:"points_formatted"`
 	LastActivity          int64  `json:"last_activity"`
 	LastActivityFormatted string `json:"last_activity_formatted"`
+	IsLive                bool   `json:"is_live"`
+	LiveDuration          string `json:"live_duration,omitempty"`
+	OfflineDuration       string `json:"offline_duration,omitempty"`
 }
 
 type DashboardData struct {
@@ -48,7 +51,9 @@ type StreamerPageData struct {
 }
 
 type StreamerGridData struct {
-	Streamers []StreamerInfo
+	TrackedLive    []StreamerInfo
+	TrackedOffline []StreamerInfo
+	Untracked      []StreamerInfo
 }
 
 type ChatMessage struct {

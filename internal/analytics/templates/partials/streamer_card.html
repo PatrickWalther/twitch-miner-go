@@ -1,10 +1,25 @@
 {{define "streamer_card"}}
-<a href="/streamer/{{.Name}}" style="text-decoration: none;">
-    <article class="streamer-card">
+<article class="streamer-card{{if .IsLive}} is-live{{end}}" onclick="window.location='/streamer/{{.Name}}'">
+    {{if .IsLive}}
+    <a href="https://twitch.tv/{{.Name}}" target="_blank" class="stream-link" title="Watch on Twitch" onclick="event.stopPropagation();">
+        <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+    </a>
+    {{end}}
+    <div class="card-header">
         <h3>{{.Name}}</h3>
-        <div class="points">{{.PointsFormatted}}</div>
-        <div class="points-label">channel points</div>
-        <div class="last-activity">Last activity: {{.LastActivityFormatted}}</div>
-    </article>
-</a>
+        {{if .IsLive}}
+        <span class="live-badge">LIVE</span>
+        {{end}}
+    </div>
+    <div class="points">{{.PointsFormatted}}</div>
+    <div class="points-label">channel points</div>
+    <div class="stream-status">
+        {{if .IsLive}}
+        <span class="status-live">Streaming for {{.LiveDuration}}</span>
+        {{else if .OfflineDuration}}
+        <span class="status-offline">Offline for {{.OfflineDuration}}</span>
+        {{end}}
+    </div>
+    <div class="last-activity">Last activity: {{.LastActivityFormatted}}</div>
+</article>
 {{end}}

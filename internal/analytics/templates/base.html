@@ -42,6 +42,7 @@
             border-radius: 0.5rem;
             padding: 1.5rem;
             transition: border-color 0.2s, transform 0.2s;
+            cursor: pointer;
         }
         
         .streamer-card:hover {
@@ -69,6 +70,88 @@
             color: #adadb8;
             font-size: 0.75rem;
             margin-top: 0.5rem;
+        }
+        
+        .streamer-card.is-live {
+            border-color: #eb0400;
+            box-shadow: 0 0 10px rgba(235, 4, 0, 0.3);
+            position: relative;
+        }
+        
+        .stream-link {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            color: #adadb8;
+            width: 1.25rem;
+            height: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+        
+        .stream-link:hover {
+            color: var(--twitch-purple);
+        }
+        
+        .stream-link svg {
+            width: 100%;
+            height: 100%;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+        }
+        
+        .streamer-card .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        
+        .live-badge {
+            background: #eb0400;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: bold;
+            padding: 0.15rem 0.4rem;
+            border-radius: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stream-status {
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+        }
+        
+        .status-live {
+            color: #eb0400;
+        }
+        
+        .status-offline {
+            color: #adadb8;
+        }
+        
+        .section {
+            margin-bottom: 2rem;
+        }
+        
+        .section-title {
+            color: #efeff1;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #303033;
+        }
+        
+        .subsection-title {
+            color: #adadb8;
+            font-size: 1rem;
+            margin: 1rem 0 0.75rem 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .stats-row {

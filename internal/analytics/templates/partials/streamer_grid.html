@@ -1,16 +1,38 @@
 {{define "streamer_grid"}}
-<div class="streamer-grid">
-    {{range .Streamers}}
-    <a href="/streamer/{{.Name}}" style="text-decoration: none;">
-        <article class="streamer-card">
-            <h3>{{.Name}}</h3>
-            <div class="points">{{.PointsFormatted}}</div>
-            <div class="points-label">channel points</div>
-            <div class="last-activity">Last activity: {{.LastActivityFormatted}}</div>
-        </article>
-    </a>
-    {{else}}
-    <p style="color: #adadb8;">No streamers tracked yet. Points will appear here as they are earned.</p>
+{{if or .TrackedLive .TrackedOffline}}
+<div class="section">
+    <h2 class="section-title">Tracked</h2>
+    {{if .TrackedLive}}
+    <h3 class="subsection-title">Live</h3>
+    <div class="streamer-grid">
+        {{range .TrackedLive}}
+        {{template "streamer_card" .}}
+        {{end}}
+    </div>
+    {{end}}
+    {{if .TrackedOffline}}
+    <h3 class="subsection-title">Offline</h3>
+    <div class="streamer-grid">
+        {{range .TrackedOffline}}
+        {{template "streamer_card" .}}
+        {{end}}
+    </div>
     {{end}}
 </div>
+{{end}}
+
+{{if .Untracked}}
+<div class="section">
+    <h2 class="section-title">Untracked</h2>
+    <div class="streamer-grid">
+        {{range .Untracked}}
+        {{template "streamer_card" .}}
+        {{end}}
+    </div>
+</div>
+{{end}}
+
+{{if not (or .TrackedLive .TrackedOffline .Untracked)}}
+<p style="color: #adadb8;">No streamers tracked yet. Points will appear here as they are earned.</p>
+{{end}}
 {{end}}
