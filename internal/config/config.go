@@ -55,10 +55,11 @@ type LoggerSettings struct {
 }
 
 type AnalyticsSettings struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Refresh  int    `json:"refresh"`
-	DaysAgo  int    `json:"daysAgo"`
+	Host           string `json:"host"`
+	Port           int    `json:"port"`
+	Refresh        int    `json:"refresh"`
+	DaysAgo        int    `json:"daysAgo"`
+	EnableChatLogs bool   `json:"enableChatLogs"`
 }
 
 func DefaultConfig() Config {
@@ -97,10 +98,11 @@ func DefaultLoggerSettings() LoggerSettings {
 
 func DefaultAnalyticsSettings() AnalyticsSettings {
 	return AnalyticsSettings{
-		Host:    "0.0.0.0",
-		Port:    5000,
-		Refresh: 5,
-		DaysAgo: 7,
+		Host:           "0.0.0.0",
+		Port:           5000,
+		Refresh:        5,
+		DaysAgo:        7,
+		EnableChatLogs: false,
 	}
 }
 

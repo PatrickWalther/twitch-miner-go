@@ -7,9 +7,8 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
-	"os"
 	"path/filepath"
-	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,70 +27,20 @@ type AnalyticsServer struct {
 	daysAgo   int
 	username  string
 	streamers []*models.Streamer
-	basePath  string
 
+	repo      Repository
 	server    *http.Server
 	templates map[string]*template.Template
 	mu        sync.RWMutex
 }
 
-type SeriesPoint struct {
-	X int64  `json:"x"`
-	Y int    `json:"y"`
-	Z string `json:"z,omitempty"`
-}
-
-type Annotation struct {
-	X           int64           `json:"x"`
-	BorderColor string          `json:"borderColor"`
-	Label       AnnotationLabel `json:"label"`
-}
-
-type AnnotationLabel struct {
-	Style map[string]string `json:"style"`
-	Text  string            `json:"text"`
-}
-
-type StreamerData struct {
-	Series      []SeriesPoint `json:"series"`
-	Annotations []Annotation  `json:"annotations"`
-}
-
-type StreamerInfo struct {
-	Name                  string `json:"name"`
-	Points                int    `json:"points"`
-	PointsFormatted       string `json:"points_formatted"`
-	LastActivity          int64  `json:"last_activity"`
-	LastActivityFormatted string `json:"last_activity_formatted"`
-}
-
-type DashboardData struct {
-	Username       string
-	RefreshMinutes int
-	TotalPoints    string
-	StreamerCount  int
-	PointsToday    string
-}
-
-type StreamerPageData struct {
-	Username       string
-	RefreshMinutes int
-	Streamer       StreamerInfo
-	PointsGained   string
-	DataPoints     int
-	DaysAgo        int
-	StartDate      string
-	EndDate        string
-}
-
-type StreamerGridData struct {
-	Streamers []StreamerInfo
-}
-
 func NewAnalyticsServer(settings config.AnalyticsSettings, username string, streamers []*models.Streamer) *AnalyticsServer {
 	basePath := filepath.Join("analytics", username)
-	if err := os.MkdirAll(basePath, 0755); err != nil {
-		slog.Error("Failed to create analytics directory", "path", basePath, "error", err)
+
+	repo, err := NewSQLiteRepository(basePath)
+	if err != nil {
+		slog.Error("Failed to create analytics repository", "error", err)
+		return nil
 	}
 
 	templates := make(map[string]*template.Template)
@@ -124,7 +73,7 @@ func NewAnalyticsServer(settings config.AnalyticsSettings, username string, stre
 		daysAgo:   settings.DaysAgo,
 		username:  username,
 		streamers: streamers,
-		basePath:  basePath,
+		repo:      repo,
 		templates: templates,
 	}
 }
@@ -140,6 +89,7 @@ func (s *AnalyticsServer) Start() {
 	mux.HandleFunc("/streamers", s.handleStreamers)
 	mux.HandleFunc("/json/", s.handleJSON)
 	mux.HandleFunc("/json_all", s.handleJSONAll)
+	mux.HandleFunc("/api/chat/", s.handleAPIChatMessages)
 
 	addr := fmt.Sprintf("%s:%d", s.host, s.port)
 	s.server = &http.Server{
@@ -160,6 +110,9 @@ func (s *AnalyticsServer) Stop() {
 	if s.server != nil {
 		s.server.Close()
 	}
+	if s.repo != nil {
+		s.repo.Close()
+	}
 }
 
 func (s *AnalyticsServer) handleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -168,18 +121,27 @@ func (s *AnalyticsServer) handleDashboard(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	streamers := s.getStreamerInfos()
+	streamers, err := s.repo.ListStreamers()
+	if err != nil {
+		slog.Error("Failed to list streamers", "error", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
 
 	totalPoints := 0
 	pointsToday := 0
-	todayStart := time.Now().Truncate(24 * time.Hour).UnixMilli()
+	todayStart := time.Now().Truncate(24 * time.Hour)
 
 	for _, info := range streamers {
 		totalPoints += info.Points
 
-		data := s.readStreamerData(info.Name)
+		data, err := s.repo.GetStreamerData(info.Name)
+		if err != nil {
+			continue
+		}
+		todayStartMS := todayStart.UnixMilli()
 		for i := len(data.Series) - 1; i >= 0; i-- {
-			if data.Series[i].X < todayStart {
+			if data.Series[i].X < todayStartMS {
 				if i+1 < len(data.Series) {
 					pointsToday += info.Points - data.Series[i+1].Y
 				}
@@ -209,8 +171,8 @@ func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	data := s.readStreamerData(name)
-	if len(data.Series) == 0 {
+	data, err := s.repo.GetStreamerData(name)
+	if err != nil || len(data.Series) == 0 {
 		http.NotFound(w, r)
 		return
 	}
@@ -255,7 +217,11 @@ func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *AnalyticsServer) handleAPIStreamers(w http.ResponseWriter, r *http.Request) {
-	streamers := s.getStreamerInfos()
+	streamers, err := s.repo.ListStreamers()
+	if err != nil {
+		http.Error(w, "Failed to list streamers", http.StatusInternalServerError)
+		return
+	}
 
 	gridData := StreamerGridData{
 		Streamers: streamers,
@@ -278,45 +244,6 @@ func (s *AnalyticsServer) handleAPIStatus(w http.ResponseWriter, r *http.Request
 	_, _ = w.Write([]byte("Connected"))
 }
 
-func (s *AnalyticsServer) getStreamerInfos() []StreamerInfo {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	files, err := os.ReadDir(s.basePath)
-	if err != nil {
-		return nil
-	}
-
-	var streamers []StreamerInfo
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".json") {
-			name := strings.TrimSuffix(file.Name(), ".json")
-			data := s.readStreamerData(name)
-
-			points := 0
-			lastActivity := int64(0)
-			if len(data.Series) > 0 {
-				points = data.Series[len(data.Series)-1].Y
-				lastActivity = data.Series[len(data.Series)-1].X
-			}
-
-			streamers = append(streamers, StreamerInfo{
-				Name:                  name,
-				Points:                points,
-				PointsFormatted:       formatNumber(points),
-				LastActivity:          lastActivity,
-				LastActivityFormatted: formatTimeAgo(lastActivity),
-			})
-		}
-	}
-
-	sort.Slice(streamers, func(i, j int) bool {
-		return streamers[i].Points > streamers[j].Points
-	})
-
-	return streamers
-}
-
 func (s *AnalyticsServer) renderPage(w http.ResponseWriter, page string, data interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
@@ -333,42 +260,12 @@ func (s *AnalyticsServer) renderPage(w http.ResponseWriter, page string, data in
 	}
 }
 
-
-
 func (s *AnalyticsServer) handleStreamers(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	files, err := os.ReadDir(s.basePath)
+	streamers, err := s.repo.ListStreamers()
 	if err != nil {
-		http.Error(w, "Failed to read analytics", http.StatusInternalServerError)
+		http.Error(w, "Failed to list streamers", http.StatusInternalServerError)
 		return
 	}
-
-	var streamers []StreamerInfo
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".json") {
-			name := strings.TrimSuffix(file.Name(), ".json")
-			data := s.readStreamerData(name)
-
-			points := 0
-			lastActivity := int64(0)
-			if len(data.Series) > 0 {
-				points = data.Series[len(data.Series)-1].Y
-				lastActivity = data.Series[len(data.Series)-1].X
-			}
-
-			streamers = append(streamers, StreamerInfo{
-				Name:         name,
-				Points:       points,
-				LastActivity: lastActivity,
-			})
-		}
-	}
-
-	sort.Slice(streamers, func(i, j int) bool {
-		return streamers[i].Name < streamers[j].Name
-	})
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(streamers)
@@ -383,23 +280,42 @@ func (s *AnalyticsServer) handleJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := s.readStreamerData(streamer)
-
 	startDate := r.URL.Query().Get("startDate")
 	endDate := r.URL.Query().Get("endDate")
-	data = s.filterData(data, startDate, endDate)
+
+	var startTime, endTime time.Time
+	if startDate != "" {
+		if t, err := time.Parse("2006-01-02", startDate); err == nil {
+			startTime = t
+		}
+	}
+	if endDate != "" {
+		if t, err := time.Parse("2006-01-02", endDate); err == nil {
+			endTime = t.Add(24*time.Hour - time.Second)
+		}
+	}
+
+	var data *StreamerData
+	var err error
+	if !startTime.IsZero() || !endTime.IsZero() {
+		data, err = s.repo.GetStreamerDataFiltered(streamer, startTime, endTime)
+	} else {
+		data, err = s.repo.GetStreamerData(streamer)
+	}
+
+	if err != nil {
+		http.Error(w, "Failed to get data", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(data)
 }
 
 func (s *AnalyticsServer) handleJSONAll(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	files, err := os.ReadDir(s.basePath)
+	streamers, err := s.repo.ListStreamers()
 	if err != nil {
-		http.Error(w, "Failed to read analytics", http.StatusInternalServerError)
+		http.Error(w, "Failed to list streamers", http.StatusInternalServerError)
 		return
 	}
 
@@ -409,94 +325,69 @@ func (s *AnalyticsServer) handleJSONAll(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var result []namedData
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".json") {
-			name := strings.TrimSuffix(file.Name(), ".json")
-			data := s.readStreamerData(name)
-			result = append(result, namedData{Name: name, Data: data})
+	for _, info := range streamers {
+		data, err := s.repo.GetStreamerData(info.Name)
+		if err != nil {
+			continue
 		}
+		result = append(result, namedData{Name: info.Name, Data: *data})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(result)
 }
 
-func (s *AnalyticsServer) readStreamerData(streamer string) StreamerData {
-	path := filepath.Join(s.basePath, streamer+".json")
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return StreamerData{}
+func (s *AnalyticsServer) handleAPIChatMessages(w http.ResponseWriter, r *http.Request) {
+	streamer := strings.TrimPrefix(r.URL.Path, "/api/chat/")
+	if streamer == "" {
+		http.Error(w, "Streamer not specified", http.StatusBadRequest)
+		return
 	}
 
-	var result StreamerData
-	_ = json.Unmarshal(data, &result)
-	return result
-}
+	limit := 50
+	offset := 0
+	query := r.URL.Query().Get("q")
 
-func (s *AnalyticsServer) filterData(data StreamerData, startDate, endDate string) StreamerData {
-	var startTS, endTS int64
-
-	if startDate != "" {
-		if t, err := time.Parse("2006-01-02", startDate); err == nil {
-			startTS = t.UnixMilli()
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+			if limit > 200 {
+				limit = 200
+			}
 		}
 	}
 
-	if endDate != "" {
-		if t, err := time.Parse("2006-01-02", endDate); err == nil {
-			endTS = t.Add(24*time.Hour - time.Second).UnixMilli()
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
 		}
+	}
+
+	var data *ChatLogData
+	var err error
+
+	if query != "" {
+		data, err = s.repo.SearchChatMessages(streamer, query, limit, offset)
 	} else {
-		endTS = time.Now().UnixMilli()
+		data, err = s.repo.GetChatMessages(streamer, limit, offset)
 	}
 
-	if startTS > 0 || endTS > 0 {
-		var filtered []SeriesPoint
-		for _, p := range data.Series {
-			if (startTS == 0 || p.X >= startTS) && (endTS == 0 || p.X <= endTS) {
-				filtered = append(filtered, p)
-			}
-		}
-		data.Series = filtered
-
-		var filteredAnnotations []Annotation
-		for _, a := range data.Annotations {
-			if (startTS == 0 || a.X >= startTS) && (endTS == 0 || a.X <= endTS) {
-				filteredAnnotations = append(filteredAnnotations, a)
-			}
-		}
-		data.Annotations = filteredAnnotations
+	if err != nil {
+		http.Error(w, "Failed to get chat messages", http.StatusInternalServerError)
+		return
 	}
 
-	return data
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 func (s *AnalyticsServer) RecordPoints(streamer *models.Streamer, eventType string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	path := filepath.Join(s.basePath, streamer.Username+".json")
-
-	var data StreamerData
-	if existing, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(existing, &data)
-	}
-
-	point := SeriesPoint{
-		X: time.Now().UnixMilli(),
-		Y: streamer.GetChannelPoints(),
-		Z: strings.ReplaceAll(eventType, "_", " "),
-	}
-	data.Series = append(data.Series, point)
-
-	jsonData, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return
-	}
-
-	if err := os.WriteFile(path, jsonData, 0644); err != nil {
-		slog.Error("Failed to write analytics data", "path", path, "error", err)
+	eventType = strings.ReplaceAll(eventType, "_", " ")
+	if err := s.repo.RecordPoints(streamer.Username, streamer.GetChannelPoints(), eventType); err != nil {
+		slog.Error("Failed to record points", "streamer", streamer.Username, "error", err)
 	}
 }
 
@@ -516,31 +407,21 @@ func (s *AnalyticsServer) RecordAnnotation(streamer *models.Streamer, eventType,
 		return
 	}
 
-	path := filepath.Join(s.basePath, streamer.Username+".json")
-
-	var data StreamerData
-	if existing, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(existing, &data)
+	if err := s.repo.RecordAnnotation(streamer.Username, eventType, text, color); err != nil {
+		slog.Error("Failed to record annotation", "streamer", streamer.Username, "error", err)
 	}
+}
 
-	annotation := Annotation{
-		X:           time.Now().UnixMilli(),
-		BorderColor: color,
-		Label: AnnotationLabel{
-			Style: map[string]string{"color": "#000", "background": color},
-			Text:  text,
-		},
+func (s *AnalyticsServer) RecordChatMessage(streamer string, username, displayName, message, emotes, badges, color string) error {
+	msg := ChatMessage{
+		Username:    username,
+		DisplayName: displayName,
+		Message:     message,
+		Emotes:      emotes,
+		Badges:      badges,
+		Color:       color,
 	}
-	data.Annotations = append(data.Annotations, annotation)
-
-	jsonData, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return
-	}
-
-	if err := os.WriteFile(path, jsonData, 0644); err != nil {
-		slog.Error("Failed to write analytics annotation", "path", path, "error", err)
-	}
+	return s.repo.RecordChatMessage(streamer, msg)
 }
 
 func formatNumber(n int) string {

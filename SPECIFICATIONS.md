@@ -588,10 +588,20 @@ A streamer is eligible for drops when:
 #### Connection Sequence
 ```
 1. Connect to server
-2. PASS oauth:{token}
-3. NICK {username}
-4. JOIN #{channel}
+2. CAP REQ :twitch.tv/tags twitch.tv/commands  (if chat logging enabled)
+3. PASS oauth:{token}
+4. NICK {username}
+5. JOIN #{channel}
 ```
+
+#### IRC Capabilities
+
+| Capability | Purpose |
+|------------|---------|
+| `twitch.tv/tags` | Receive message metadata (emotes, badges, color) |
+| `twitch.tv/commands` | Receive Twitch-specific IRC messages |
+
+These capabilities are only requested when chat logging is enabled to reduce bandwidth.
 
 ### Chat Presence Modes
 
@@ -602,10 +612,22 @@ A streamer is eligible for drops when:
 | `ONLINE` | Connect when streamer is online |
 | `OFFLINE` | Connect when streamer is offline |
 
+### Chat Logging
+
+When enabled (`analytics.enableChatLogs: true`), chat messages are stored in SQLite with:
+- Username and display name
+- Message content
+- Emote positions (Twitch format: `emote_id:start-end/...`)
+- Badge list
+- User color
+
+Messages can be searched via the dashboard or API endpoint.
+
 ### Features
 - Appears in viewer list
 - May earn StreamElements points
-- Detects @mentions (configurable with/without @ symbol)
+- Detects @mentions (logs to console)
+- Optional chat message logging with emote support
 
 ---
 
@@ -613,36 +635,65 @@ A streamer is eligible for drops when:
 
 ### Data Storage
 
-Analytics data stored per streamer in JSON format:
+Analytics data is stored in SQLite database (`analytics/{username}/analytics.db`).
 
-```json
-{
-    "series": [
-        {
-            "x": 1702656000000,
-            "y": 50000,
-            "z": "Watch"
-        },
-        {
-            "x": 1702656300000,
-            "y": 50060,
-            "z": "Claim"
-        }
-    ],
-    "annotations": [
-        {
-            "x": 1702656600000,
-            "borderColor": "#36b535",
-            "label": {
-                "style": { "color": "#000", "background": "#36b535" },
-                "text": "WIN: +5000"
-            }
-        }
-    ]
-}
+#### Database Schema
+
+```sql
+-- Schema version tracked via PRAGMA user_version
+
+-- Streamers table
+CREATE TABLE streamers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+-- Points history
+CREATE TABLE points (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    streamer_id INTEGER NOT NULL,
+    timestamp INTEGER NOT NULL,
+    points INTEGER NOT NULL,
+    event_type TEXT,
+    FOREIGN KEY (streamer_id) REFERENCES streamers(id)
+);
+
+-- Annotations (predictions, streaks, etc.)
+CREATE TABLE annotations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    streamer_id INTEGER NOT NULL,
+    timestamp INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    color TEXT NOT NULL,
+    FOREIGN KEY (streamer_id) REFERENCES streamers(id)
+);
+
+-- Chat messages (optional, when enableChatLogs is true)
+CREATE TABLE chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    streamer_id INTEGER NOT NULL,
+    timestamp INTEGER NOT NULL,
+    username TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    message TEXT NOT NULL,
+    emotes TEXT,
+    badges TEXT,
+    color TEXT,
+    FOREIGN KEY (streamer_id) REFERENCES streamers(id)
+);
+
+-- Indexes for performance
+CREATE INDEX idx_points_streamer_time ON points(streamer_id, timestamp);
+CREATE INDEX idx_annotations_streamer_time ON annotations(streamer_id, timestamp);
+CREATE INDEX idx_chat_streamer_time ON chat_messages(streamer_id, timestamp);
 ```
 
-**Note**: `x` values are Unix timestamps in milliseconds.
+#### Migration from JSON
+
+On first run after upgrade, existing JSON files are automatically migrated to SQLite and deleted upon successful import.
+
+**Note**: All timestamps are Unix timestamps in milliseconds.
 
 ### Event Types for Series
 
@@ -669,14 +720,22 @@ Analytics data stored per streamer in JSON format:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Dashboard HTML page |
+| `/streamer/{name}` | GET | Streamer detail page with chart and chat |
 | `/streamers` | GET | List of streamers with current points |
 | `/json/{streamer}` | GET | JSON data for specific streamer |
 | `/json_all` | GET | All streamers' data combined |
-| `/log` | GET | Live log output |
+| `/api/streamers` | GET | Streamer grid partial (HTMX) |
+| `/api/chat/{streamer}` | GET | Chat messages JSON |
+| `/api/status` | GET | Connection status |
 
 #### Query Parameters for `/json/{streamer}`
 - `startDate`: Filter start (YYYY-MM-DD)
 - `endDate`: Filter end (YYYY-MM-DD)
+
+#### Query Parameters for `/api/chat/{streamer}`
+- `limit`: Max messages to return (default: 50, max: 200)
+- `offset`: Pagination offset
+- `q`: Search query (searches message, username, display name)
 
 ---
 
@@ -695,6 +754,7 @@ Per-streamer configuration options:
 | `watchStreak` | bool | true | Prioritize watch streaks |
 | `communityGoals` | bool | false | Contribute to goals |
 | `chat` | enum | ONLINE | IRC presence mode |
+| `chatLogs` | bool* | null | Override global chat logging (null = use global) |
 | `bet` | object | Default | Betting configuration |
 
 ### Settings Priority
@@ -898,18 +958,14 @@ On termination signal:
 
 ```
 application/
-├── config.{ext}              # User configuration
+├── config.json               # User configuration
 ├── cookies/
-│   └── {username}.{ext}      # Authentication tokens
+│   └── {username}.pkl        # Authentication tokens (pickle format)
 ├── logs/
 │   └── {username}.log        # Log files (7-day rotation)
-├── analytics/
-│   └── {username}/
-│       └── {streamer}.json   # Analytics data
-└── assets/                   # Dashboard assets (if applicable)
-    ├── charts.html
-    ├── script.js
-    └── style.css
+└── analytics/
+    └── {username}/
+        └── analytics.db      # SQLite database (points, annotations, chat)
 ```
 
 ---

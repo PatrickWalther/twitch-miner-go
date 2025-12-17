@@ -23,6 +23,7 @@ type StreamerSettings struct {
 	WatchStreak     bool         `json:"watchStreak"`
 	CommunityGoals  bool         `json:"communityGoals"`
 	Chat            ChatPresence `json:"chat"`
+	ChatLogs        *bool        `json:"chatLogs,omitempty"`
 	Bet             BetSettings  `json:"bet"`
 }
 

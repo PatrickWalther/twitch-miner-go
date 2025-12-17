@@ -164,7 +164,21 @@ func (m *Miner) setupComponents() {
 	m.wsPool = pubsub.NewWebSocketPool(m.client, m.auth.GetAuthToken(), m.streamers)
 	m.wsPool.SetMessageHandler(m.handlePubSubMessage)
 
-	m.chatManager = chat.NewChatManager(m.config.Username, m.auth.GetAuthToken())
+	if m.config.EnableAnalytics {
+		m.analytics = analytics.NewAnalyticsServer(
+			m.config.Analytics,
+			m.config.Username,
+			m.streamers,
+		)
+	}
+
+	var chatLogger chat.ChatLogger
+	chatLogsEnabled := m.config.EnableAnalytics && m.config.Analytics.EnableChatLogs
+	slog.Debug("Chat logging config", "enableAnalytics", m.config.EnableAnalytics, "enableChatLogs", m.config.Analytics.EnableChatLogs, "chatLogsEnabled", chatLogsEnabled)
+	if chatLogsEnabled && m.analytics != nil {
+		chatLogger = analytics.NewChatLoggerAdapter(m.analytics)
+	}
+	m.chatManager = chat.NewChatManager(m.config.Username, m.auth.GetAuthToken(), chatLogger, chatLogsEnabled)
 
 	m.watcher = watcher.NewMinuteWatcher(
 		m.client,
@@ -178,14 +192,6 @@ func (m *Miner) setupComponents() {
 		m.streamers,
 		m.config.RateLimits,
 	)
-
-	if m.config.EnableAnalytics {
-		m.analytics = analytics.NewAnalyticsServer(
-			m.config.Analytics,
-			m.config.Username,
-			m.streamers,
-		)
-	}
 
 	if m.config.ClaimDropsOnStartup {
 		slog.Info("Claiming all drops from inventory on startup")
