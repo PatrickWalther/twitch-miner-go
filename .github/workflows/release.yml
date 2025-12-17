@@ -1,40 +1,41 @@
 name: Release
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
-    branches: [main]
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
   packages: write
 
 jobs:
-  check-release:
+  lint-and-build:
     runs-on: ubuntu-latest
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      startsWith(github.event.workflow_run.head_branch, 'v')
-    outputs:
-      is_tag: ${{ steps.check.outputs.is_tag }}
-      tag_name: ${{ steps.check.outputs.tag_name }}
     steps:
-      - name: Check if triggered by tag
-        id: check
-        run: |
-          REF="${{ github.event.workflow_run.head_branch }}"
-          if [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            echo "is_tag=true" >> $GITHUB_OUTPUT
-            echo "tag_name=$REF" >> $GITHUB_OUTPUT
-          else
-            echo "is_tag=false" >> $GITHUB_OUTPUT
-          fi
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Run tests
+        run: go test -v -race ./...
 
   build-binaries:
-    needs: check-release
-    if: needs.check-release.outputs.is_tag == 'true'
+    needs: lint-and-build
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -56,8 +57,6 @@ jobs:
             suffix: darwin-arm64
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.check-release.outputs.tag_name }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -69,7 +68,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          go build -ldflags="-s -w -X main.version=${{ needs.check-release.outputs.tag_name }}" \
+          go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
             -o twitch-miner-go-${{ matrix.suffix }} \
             ./cmd/miner
 
@@ -80,12 +79,10 @@ jobs:
           path: twitch-miner-go-${{ matrix.suffix }}
 
   release:
-    needs: [check-release, build-binaries]
+    needs: build-binaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.check-release.outputs.tag_name }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -101,19 +98,17 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.check-release.outputs.tag_name }}
+          tag_name: ${{ github.ref_name }}
           files: |
             dist/twitch-miner-go-*
             dist/checksums.txt
           generate_release_notes: true
 
   docker:
-    needs: [check-release, build-binaries]
+    needs: build-binaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.check-release.outputs.tag_name }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -142,9 +137,9 @@ jobs:
             thegame402/twitch-miner-go
             ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}},value=${{ needs.check-release.outputs.tag_name }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.check-release.outputs.tag_name }}
-            type=semver,pattern={{major}},value=${{ needs.check-release.outputs.tag_name }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
             type=raw,value=latest
 
       - name: Build and push
@@ -156,6 +151,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VERSION=${{ needs.check-release.outputs.tag_name }}
+            VERSION=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
