@@ -190,7 +190,7 @@ func (r *SQLiteRepository) importStreamerData(streamer string, data *StreamerDat
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	streamerID, err := r.getOrCreateStreamerTx(tx, streamer)
 	if err != nil {
@@ -231,7 +231,7 @@ func (r *SQLiteRepository) getOrCreateStreamer(name string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	id, err := r.getOrCreateStreamerTx(tx, name)
 	if err != nil {
