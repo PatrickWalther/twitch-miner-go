@@ -172,7 +172,7 @@ func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Requ
 	}
 
 	data, err := s.repo.GetStreamerData(name)
-	if err != nil || len(data.Series) == 0 {
+	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
