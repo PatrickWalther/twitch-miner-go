@@ -13,11 +13,26 @@ import (
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
 )
 
+type ChatLogger interface {
+	RecordChatMessage(streamer string, msg ChatMessageData) error
+}
+
+type ChatMessageData struct {
+	Username    string
+	DisplayName string
+	Message     string
+	Emotes      string
+	Badges      string
+	Color       string
+}
+
 type IRCClient struct {
 	username  string
 	token     string
 	channel   string
 	streamer  *models.Streamer
+	logger    ChatLogger
+	logChat   bool
 
 	conn     net.Conn
 	reader   *bufio.Reader
@@ -27,12 +42,15 @@ type IRCClient struct {
 	mu sync.RWMutex
 }
 
-func NewIRCClient(username, token string, streamer *models.Streamer) *IRCClient {
+func NewIRCClient(username, token string, streamer *models.Streamer, logger ChatLogger, logChat bool) *IRCClient {
+	slog.Debug("Creating IRC client", "channel", streamer.Username, "logChat", logChat, "hasLogger", logger != nil)
 	return &IRCClient{
 		username: username,
 		token:    token,
 		channel:  "#" + strings.ToLower(streamer.Username),
 		streamer: streamer,
+		logger:   logger,
+		logChat:  logChat,
 		stopChan: make(chan struct{}),
 	}
 }
@@ -67,6 +85,11 @@ func (c *IRCClient) Connect() error {
 }
 
 func (c *IRCClient) authenticate() error {
+	if c.logChat {
+		if err := c.send("CAP REQ :twitch.tv/tags twitch.tv/commands"); err != nil {
+			return err
+		}
+	}
 	if err := c.send(fmt.Sprintf("PASS oauth:%s", c.token)); err != nil {
 		return err
 	}
@@ -125,6 +148,8 @@ func (c *IRCClient) readLoop() {
 }
 
 func (c *IRCClient) handleMessage(line string) {
+	slog.Debug("IRC message received", "channel", c.channel, "line", line)
+
 	if strings.HasPrefix(line, "PING") {
 		pongMsg := strings.Replace(line, "PING", "PONG", 1)
 		_ = c.send(pongMsg)
@@ -137,7 +162,19 @@ func (c *IRCClient) handleMessage(line string) {
 }
 
 func (c *IRCClient) handlePrivMsg(line string) {
-	parts := strings.SplitN(line, " ", 4)
+	var tags map[string]string
+	remaining := line
+
+	if strings.HasPrefix(line, "@") {
+		spaceIdx := strings.Index(line, " ")
+		if spaceIdx == -1 {
+			return
+		}
+		tags = parseTags(line[1:spaceIdx])
+		remaining = line[spaceIdx+1:]
+	}
+
+	parts := strings.SplitN(remaining, " ", 4)
 	if len(parts) < 4 {
 		return
 	}
@@ -153,6 +190,26 @@ func (c *IRCClient) handlePrivMsg(line string) {
 		}
 	}
 
+	if c.logChat && c.logger != nil {
+		displayName := nick
+		if dn, ok := tags["display-name"]; ok && dn != "" {
+			displayName = dn
+		}
+
+		msgData := ChatMessageData{
+			Username:    nick,
+			DisplayName: displayName,
+			Message:     message,
+			Emotes:      tags["emotes"],
+			Badges:      tags["badges"],
+			Color:       tags["color"],
+		}
+
+		if err := c.logger.RecordChatMessage(c.streamer.Username, msgData); err != nil {
+			slog.Debug("Failed to log chat message", "error", err)
+		}
+	}
+
 	mention := "@" + strings.ToLower(c.username)
 	if strings.Contains(strings.ToLower(message), mention) ||
 		strings.Contains(strings.ToLower(message), strings.ToLower(c.username)) {
@@ -162,6 +219,17 @@ func (c *IRCClient) handlePrivMsg(line string) {
 			"message", message,
 		)
 	}
+}
+
+func parseTags(tagStr string) map[string]string {
+	tags := make(map[string]string)
+	for _, tag := range strings.Split(tagStr, ";") {
+		parts := strings.SplitN(tag, "=", 2)
+		if len(parts) == 2 {
+			tags[parts[0]] = parts[1]
+		}
+	}
+	return tags
 }
 
 func (c *IRCClient) Stop() {

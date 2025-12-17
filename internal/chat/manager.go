@@ -8,18 +8,22 @@ import (
 )
 
 type ChatManager struct {
-	username string
-	token    string
-	clients  map[string]*IRCClient
+	username          string
+	token             string
+	clients           map[string]*IRCClient
+	logger            ChatLogger
+	globalChatLogsOn  bool
 
 	mu sync.RWMutex
 }
 
-func NewChatManager(username, token string) *ChatManager {
+func NewChatManager(username, token string, logger ChatLogger, globalChatLogsOn bool) *ChatManager {
 	return &ChatManager{
-		username: username,
-		token:    token,
-		clients:  make(map[string]*IRCClient),
+		username:         username,
+		token:            token,
+		clients:          make(map[string]*IRCClient),
+		logger:           logger,
+		globalChatLogsOn: globalChatLogsOn,
 	}
 }
 
@@ -44,6 +48,13 @@ func (m *ChatManager) ToggleChat(streamer *models.Streamer) {
 	}
 }
 
+func (m *ChatManager) shouldLogChat(streamer *models.Streamer) bool {
+	if streamer.Settings.ChatLogs != nil {
+		return *streamer.Settings.ChatLogs
+	}
+	return m.globalChatLogsOn
+}
+
 func (m *ChatManager) joinChat(streamer *models.Streamer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -54,7 +65,8 @@ func (m *ChatManager) joinChat(streamer *models.Streamer) {
 		}
 	}
 
-	client := NewIRCClient(m.username, m.token, streamer)
+	logChat := m.shouldLogChat(streamer)
+	client := NewIRCClient(m.username, m.token, streamer, m.logger, logChat)
 	if err := client.Connect(); err != nil {
 		slog.Error("Failed to join IRC chat", "channel", streamer.Username, "error", err)
 		return

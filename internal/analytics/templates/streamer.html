@@ -39,6 +39,109 @@
         <button type="submit">Apply</button>
     </form>
 </div>
+
+<div class="chart-container" style="margin-top: 1rem;">
+    <h3>Chat Log</h3>
+    <div class="chat-search">
+        <input type="text" id="chat-search" placeholder="Search messages..." autocomplete="off">
+        <button id="chat-search-clear" style="display: none;">✕</button>
+        <span id="chat-search-info"></span>
+    </div>
+    <div id="chat-log" class="chat-log-container">
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-loading" id="chat-loading" style="display: none;">Loading...</div>
+    </div>
+</div>
+
+<style>
+    .chat-search {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .chat-search input {
+        flex: 1;
+        padding: 0.5rem;
+        background: #0e0e10;
+        border: 1px solid #303033;
+        border-radius: 0.25rem;
+        color: #efeff1;
+    }
+    .chat-search input:focus {
+        outline: none;
+        border-color: var(--twitch-purple);
+    }
+    .chat-search button {
+        padding: 0.5rem 0.75rem;
+        background: #303033;
+        border: none;
+        border-radius: 0.25rem;
+        color: #efeff1;
+        cursor: pointer;
+    }
+    .chat-search-info {
+        color: #adadb8;
+        font-size: 0.75rem;
+    }
+    .chat-log-container {
+        height: 400px;
+        overflow-y: auto;
+        position: relative;
+    }
+    .chat-messages {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    .chat-message {
+        padding: 0.5rem;
+        background: #0e0e10;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        line-height: 1.4;
+        word-wrap: break-word;
+        min-height: 32px;
+    }
+    .chat-message .timestamp {
+        color: #6b6b6b;
+        font-size: 0.75rem;
+        margin-right: 0.5rem;
+    }
+    .chat-message .username {
+        font-weight: bold;
+        margin-right: 0.25rem;
+    }
+    .chat-message .message-text {
+        color: #efeff1;
+    }
+    .chat-message .emote {
+        height: 1.5em;
+        vertical-align: middle;
+        margin: 0 0.1rem;
+    }
+    .chat-message .badge {
+        height: 1.1em;
+        vertical-align: middle;
+        margin-right: 0.2rem;
+    }
+    .chat-loading {
+        text-align: center;
+        padding: 1rem;
+        color: #adadb8;
+    }
+    .chat-no-messages {
+        color: #adadb8;
+        text-align: center;
+        padding: 2rem;
+    }
+    .chat-message mark {
+        background: var(--twitch-purple);
+        color: #fff;
+        padding: 0 0.15rem;
+        border-radius: 2px;
+    }
+</style>
 {{end}}
 
 {{define "scripts"}}
@@ -186,6 +289,208 @@
             document.getElementById('start-date').value,
             document.getElementById('end-date').value
         );
+    }, {{.RefreshMinutes}} * 60 * 1000);
+    
+    // Chat log functionality with virtual scrolling
+    const chatState = {
+        messages: [],
+        totalCount: 0,
+        offset: 0,
+        limit: 50,
+        buffer: 20,
+        loading: false,
+        searchQuery: '',
+        searchTimeout: null
+    };
+    
+    const chatContainer = document.getElementById('chat-log');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatLoading = document.getElementById('chat-loading');
+    const chatSearch = document.getElementById('chat-search');
+    const chatSearchClear = document.getElementById('chat-search-clear');
+    const chatSearchInfo = document.getElementById('chat-search-info');
+    
+    function parseEmotes(message, emoteStr) {
+        if (!emoteStr) return escapeHtml(message);
+        
+        const emotes = [];
+        const emoteParts = emoteStr.split('/');
+        
+        for (const part of emoteParts) {
+            const [emoteId, positions] = part.split(':');
+            if (!positions) continue;
+            
+            const ranges = positions.split(',');
+            for (const range of ranges) {
+                const [start, end] = range.split('-').map(Number);
+                emotes.push({
+                    id: emoteId,
+                    start: start,
+                    end: end + 1,
+                    text: message.substring(start, end + 1)
+                });
+            }
+        }
+        
+        emotes.sort((a, b) => b.start - a.start);
+        
+        let result = message;
+        for (const emote of emotes) {
+            const emoteUrl = `https://static-cdn.jtvnw.net/emoticons/v2/${emote.id}/default/dark/1.0`;
+            const img = `<img class="emote" src="${emoteUrl}" alt="${escapeHtml(emote.text)}" title="${escapeHtml(emote.text)}">`;
+            result = result.substring(0, emote.start) + img + result.substring(emote.end);
+        }
+        
+        return result.replace(/([^<]*)(<[^>]+>)?/g, function(match, text, tag) {
+            return (text ? escapeHtml(text) : '') + (tag || '');
+        }).replace(/&lt;img/g, '<img').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function formatChatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleString([], { 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+    }
+    
+    function highlightSearch(text, query) {
+        if (!query) return text;
+        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
+    }
+    
+    function renderChatMessage(msg, searchQuery = '') {
+        const color = msg.color || '#9146ff';
+        const displayName = msg.display_name || msg.username;
+        let messageHtml = parseEmotes(msg.message, msg.emotes);
+        
+        if (searchQuery) {
+            messageHtml = highlightSearch(messageHtml, searchQuery);
+        }
+        
+        return `
+            <div class="chat-message" data-id="${msg.id}">
+                <span class="timestamp">${formatChatTimestamp(msg.timestamp)}</span>
+                <span class="username" style="color: ${escapeHtml(color)}">${escapeHtml(displayName)}:</span>
+                <span class="message-text">${messageHtml}</span>
+            </div>
+        `;
+    }
+    
+    async function fetchChatMessages(offset = 0, append = false) {
+        if (chatState.loading) return;
+        chatState.loading = true;
+        chatLoading.style.display = 'block';
+        
+        try {
+            let url = `/api/chat/${streamerName}?limit=${chatState.limit}&offset=${offset}`;
+            if (chatState.searchQuery) {
+                url += `&q=${encodeURIComponent(chatState.searchQuery)}`;
+            }
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            chatState.totalCount = data.total_count;
+            
+            if (append) {
+                chatState.messages = [...chatState.messages, ...data.messages];
+            } else {
+                chatState.messages = data.messages || [];
+                chatState.offset = 0;
+            }
+            
+            chatState.offset = offset + (data.messages?.length || 0);
+            
+            updateChatSearchInfo();
+            renderVisibleMessages();
+            
+        } catch (err) {
+            console.error('Failed to load chat messages:', err);
+        } finally {
+            chatState.loading = false;
+            chatLoading.style.display = 'none';
+        }
+    }
+    
+    function updateChatSearchInfo() {
+        if (chatState.searchQuery) {
+            chatSearchInfo.textContent = `${chatState.totalCount} results`;
+        } else {
+            chatSearchInfo.textContent = chatState.totalCount > 0 ? `${chatState.totalCount} messages` : '';
+        }
+    }
+    
+    function renderVisibleMessages() {
+        if (chatState.messages.length === 0) {
+            const msg = chatState.searchQuery 
+                ? 'No messages found for your search' 
+                : 'No chat messages recorded';
+            chatMessages.innerHTML = `<div class="chat-no-messages">${msg}</div>`;
+            return;
+        }
+        
+        const html = chatState.messages.map(msg => 
+            renderChatMessage(msg, chatState.searchQuery)
+        ).join('');
+        chatMessages.innerHTML = html;
+    }
+    
+    function handleScroll() {
+        const { scrollTop, scrollHeight, clientHeight } = chatContainer;
+        const scrollBottom = scrollHeight - scrollTop - clientHeight;
+        
+        if (scrollBottom < 100 && !chatState.loading && chatState.offset < chatState.totalCount) {
+            fetchChatMessages(chatState.offset, true);
+        }
+    }
+    
+    function handleSearch() {
+        const query = chatSearch.value.trim();
+        chatState.searchQuery = query;
+        chatSearchClear.style.display = query ? 'block' : 'none';
+        fetchChatMessages(0, false);
+    }
+    
+    function clearSearch() {
+        chatSearch.value = '';
+        chatState.searchQuery = '';
+        chatSearchClear.style.display = 'none';
+        fetchChatMessages(0, false);
+    }
+    
+    chatContainer.addEventListener('scroll', handleScroll);
+    
+    chatSearch.addEventListener('input', function() {
+        clearTimeout(chatState.searchTimeout);
+        chatState.searchTimeout = setTimeout(handleSearch, 300);
+    });
+    
+    chatSearch.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            clearSearch();
+        }
+    });
+    
+    chatSearchClear.addEventListener('click', clearSearch);
+    
+    // Initial chat load
+    fetchChatMessages(0, false);
+    
+    // Auto-refresh chat (only if not searching)
+    setInterval(function() {
+        if (!chatState.searchQuery) {
+            fetchChatMessages(0, false);
+        }
     }, {{.RefreshMinutes}} * 60 * 1000);
 </script>
 {{end}}

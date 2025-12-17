@@ -173,9 +173,42 @@ The application watches up to 2 streams simultaneously, selected by priority:
 
 When enabled, the analytics server provides a web dashboard at `http://localhost:5000` showing:
 - Current points per streamer
-- Historical point data
-- Prediction results
+- Historical point data with interactive charts
+- Prediction results and annotations
 - Watch streak bonuses
+- **Chat logging** with search functionality (optional)
+
+### Analytics Configuration
+
+```json
+{
+  "analytics": {
+    "host": "0.0.0.0",
+    "port": 5000,
+    "refresh": 5,
+    "daysAgo": 7,
+    "enableChatLogs": true
+  }
+}
+```
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `host` | 0.0.0.0 | Server bind address |
+| `port` | 5000 | Server port |
+| `refresh` | 5 | Dashboard auto-refresh interval (minutes) |
+| `daysAgo` | 7 | Default chart date range |
+| `enableChatLogs` | false | Enable chat message logging |
+
+### Chat Logging
+
+When `enableChatLogs` is enabled:
+- All chat messages from joined channels are stored in SQLite
+- Messages include username, display name, emotes, badges, and color
+- Searchable chat log on each streamer's dashboard page
+- Per-streamer override available via `"chatLogs": true/false` in streamer settings
+
+**Note**: Chat logging requires the streamer's chat to be joined (based on `chat` setting).
 
 ## Rate Limits
 
