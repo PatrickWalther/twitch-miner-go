@@ -45,8 +45,6 @@ type StreamerPageData struct {
 	PointsGained   string
 	DataPoints     int
 	DaysAgo        int
-	StartDate      string
-	EndDate        string
 }
 
 type StreamerGridData struct {
