@@ -65,10 +65,11 @@ docker run -d \
 
 ### Unraid
 
-1. Go to Docker tab → Add Container → Template Repositories
-2. Add: `https://github.com/PatrickWalther/twitch-miner-go`
-3. Click "Add Container" and search for "twitch-miner-go"
-4. Configure paths and save
+1. Install the **Community Applications** plugin from the Apps tab
+2. Search for "twitch-miner-go" in Community Applications
+3. Click Install and configure paths
+
+Alternatively, manually add the container via Docker tab → Add Container using `thegame402/twitch-miner-go:latest` as the repository.
 
 ## Configuration
 
