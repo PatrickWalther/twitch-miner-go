@@ -20,6 +20,8 @@
         <span class="status-offline">Offline for {{.OfflineDuration}}</span>
         {{end}}
     </div>
+    {{if not .IsLive}}
     <div class="last-activity">Last activity: {{.LastActivityFormatted}}</div>
+    {{end}}
 </article>
 {{end}}
