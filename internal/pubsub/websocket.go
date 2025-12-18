@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"log/slog"
+	mathrand "math/rand"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ type WebSocketClient struct {
 	topics        []Topic
 	pendingTopics []Topic
 	authToken     string
+	pingInterval  int
 
 	isOpened      bool
 	isClosed      bool
@@ -37,14 +39,15 @@ type WebSocketClient struct {
 	stopChan chan struct{}
 }
 
-func NewWebSocketClient(index int, authToken string, onMessage func(*PubSubMessage), onError func(error)) *WebSocketClient {
+func NewWebSocketClient(index int, authToken string, pingInterval int, onMessage func(*PubSubMessage), onError func(error)) *WebSocketClient {
 	return &WebSocketClient{
-		index:      index,
-		authToken:  authToken,
-		onMessage:  onMessage,
-		onError:    onError,
-		stopChan:   make(chan struct{}),
-		topics:     make([]Topic, 0),
+		index:        index,
+		authToken:    authToken,
+		pingInterval: pingInterval,
+		onMessage:    onMessage,
+		onError:      onError,
+		stopChan:     make(chan struct{}),
+		topics:       make([]Topic, 0),
 		pendingTopics: make([]Topic, 0),
 	}
 }
@@ -254,18 +257,23 @@ func (ws *WebSocketClient) handleMessage(msg WSMessage) {
 	}
 }
 
-func (ws *WebSocketClient) pingLoop() {
-	ticker := time.NewTicker(27 * time.Second)
-	defer ticker.Stop()
+func (ws *WebSocketClient) randomPingInterval() time.Duration {
+	base := float64(ws.pingInterval)
+	jitter := (mathrand.Float64() - 0.5) * 5.0
+	return time.Duration(base+jitter) * time.Second
+}
 
+func (ws *WebSocketClient) pingLoop() {
 	checkTicker := time.NewTicker(time.Minute)
 	defer checkTicker.Stop()
 
 	for {
+		pingWait := ws.randomPingInterval()
+
 		select {
 		case <-ws.stopChan:
 			return
-		case <-ticker.C:
+		case <-time.After(pingWait):
 			ws.mu.RLock()
 			isReconnecting := ws.isReconnecting
 			ws.mu.RUnlock()

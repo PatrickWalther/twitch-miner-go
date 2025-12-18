@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"sort"
@@ -75,9 +76,12 @@ func (w *MinuteWatcher) UpdateSettings(priorities []config.Priority, settings co
 	w.settings = settings
 }
 
-func (w *MinuteWatcher) loop() {
-	interval := time.Duration(w.settings.MinuteWatchedInterval) * time.Second
+func (w *MinuteWatcher) randomizedDelay(base time.Duration) time.Duration {
+	jitter := (rand.Float64() - 0.5) * 0.4
+	return time.Duration(float64(base) * (1.0 + jitter))
+}
 
+func (w *MinuteWatcher) loop() {
 	for {
 		select {
 		case <-w.stopChan:
@@ -87,10 +91,11 @@ func (w *MinuteWatcher) loop() {
 
 		w.processWatching()
 
+		interval := time.Duration(w.settings.MinuteWatchedInterval) * time.Second
 		select {
 		case <-w.stopChan:
 			return
-		case <-time.After(interval):
+		case <-time.After(w.randomizedDelay(interval)):
 		}
 	}
 }
@@ -133,7 +138,7 @@ func (w *MinuteWatcher) processWatching() {
 		select {
 		case <-w.stopChan:
 			return
-		case <-time.After(sleepBetween):
+		case <-time.After(w.randomizedDelay(sleepBetween)):
 		}
 	}
 }

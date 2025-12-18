@@ -155,8 +155,8 @@ stopMining()          # Graceful shutdown
 #### Concurrent Operations
 The application runs multiple concurrent operations:
 1. **Main Loop**: Orchestration and WebSocket health monitoring
-2. **Minute Watcher**: Sends minute-watched events every 20 seconds
-3. **Campaign Sync**: Syncs drop campaigns every 30 minutes
+2. **Minute Watcher**: Sends minute-watched events (60s cycle divided by # of streamers, with ±20% jitter)
+3. **Campaign Sync**: Syncs drop campaigns every 60 minutes
 4. **WebSocket Handlers**: One per PubSub connection (up to 50 topics each)
 5. **IRC Connections**: One per streamer with chat enabled
 6. **Analytics Server**: HTTP server for dashboard (optional)
@@ -332,7 +332,7 @@ All Twitch API interactions use persisted GraphQL queries with SHA256 hashes.
 | `community-points-channel-v1` | `community-goal-*` | Update/contribute to goals |
 
 ### Connection Management
-- Send PING every 25-30 seconds
+- Send PING at configured interval (default 27s) with ±2.5s random jitter
 - Reconnect if no PONG received within 5 minutes
 - Auto-reconnect on disconnect with 60-second delay
 - Check internet connectivity before reconnecting
@@ -545,7 +545,7 @@ Drop
 ### Drop Claiming Flow
 
 ```
-1. Sync Campaigns (every 30 minutes)
+1. Sync Campaigns (every 60 minutes)
    ├── GET ViewerDropsDashboard (status: ACTIVE)
    ├── GET DropCampaignDetails for each
    └── Filter by date range
@@ -777,14 +777,16 @@ Per-streamer configuration options:
 
 ### Rate Limit Settings
 
+Defaults are tuned to match the Python miner and avoid Twitch rate limiting. Random jitter is applied to intervals to appear more human-like.
+
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `websocketPingInterval` | int | 27 | Seconds between WebSocket pings (20-60) |
-| `campaignSyncInterval` | int | 30 | Minutes between drop campaign syncs (5-120) |
-| `minuteWatchedInterval` | int | 20 | Seconds between minute-watched events (15-60) |
+| `websocketPingInterval` | int | 27 | Base seconds between WebSocket pings (20-60), ±2.5s jitter applied |
+| `campaignSyncInterval` | int | 60 | Minutes between drop campaign syncs (5-120) |
+| `minuteWatchedInterval` | int | 60 | Base seconds for minute-watched cycle (30-120), divided by # of streamers, ±20% jitter |
 | `requestDelay` | float | 0.5 | Seconds between consecutive API calls (0.1-2.0) |
 | `reconnectDelay` | int | 60 | Seconds to wait before reconnecting (30-300) |
-| `streamCheckInterval` | int | 30 | Seconds between stream status checks (15-120) |
+| `streamCheckInterval` | int | 600 | Seconds between stream status checks (60-900) |
 
 ---
 
@@ -982,14 +984,16 @@ application/
 
 ### Configurable Limits
 
+Defaults are tuned to match the Python miner. Random jitter is applied to avoid detection.
+
 | Setting | Default | Min | Max | Description |
 |---------|---------|-----|-----|-------------|
-| `websocketPingInterval` | 27 | 20 | 60 | Seconds between WebSocket pings |
-| `campaignSyncInterval` | 30 | 5 | 120 | Minutes between drop campaign syncs |
-| `minuteWatchedInterval` | 20 | 15 | 60 | Seconds between minute-watched events |
+| `websocketPingInterval` | 27 | 20 | 60 | Base seconds between WebSocket pings (±2.5s jitter) |
+| `campaignSyncInterval` | 60 | 5 | 120 | Minutes between drop campaign syncs |
+| `minuteWatchedInterval` | 60 | 30 | 120 | Base seconds for minute-watched cycle (divided by # streamers, ±20% jitter) |
 | `requestDelay` | 0.5 | 0.1 | 2.0 | Seconds between consecutive API calls |
 | `reconnectDelay` | 60 | 30 | 300 | Seconds to wait before reconnecting |
-| `streamCheckInterval` | 30 | 15 | 120 | Seconds between stream status checks |
+| `streamCheckInterval` | 600 | 60 | 900 | Seconds between stream status checks |
 
 ---
 

@@ -22,6 +22,9 @@
         nav {
             background: #18181b;
             border-bottom: 1px solid #303033;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
         
         .brand {
@@ -270,14 +273,58 @@
         }
         
         .setting-input {
-            width: auto;
-            min-width: 120px;
+            width: 150px;
+            min-width: 150px;
+            max-width: 150px;
             margin-bottom: 0;
+            flex-shrink: 0;
+        }
+        
+        .setting-input[type="number"] {
+            width: 100px;
+            min-width: 100px;
+            max-width: 100px;
+        }
+        
+        select.setting-input {
+            width: 180px;
+            min-width: 180px;
+            max-width: 180px;
         }
         
         .setting-input[type="checkbox"] {
-            width: auto;
+            width: 3rem;
+            height: 1.5rem;
             min-width: auto;
+            appearance: none;
+            -webkit-appearance: none;
+            background: #303033;
+            border-radius: 0.75rem;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .setting-input[type="checkbox"]::before {
+            content: '';
+            position: absolute;
+            width: 1.1rem;
+            height: 1.1rem;
+            border-radius: 50%;
+            top: 50%;
+            left: 0.2rem;
+            transform: translateY(-50%);
+            background: #adadb8;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        
+        .setting-input[type="checkbox"]:checked {
+            background: var(--twitch-purple);
+        }
+        
+        .setting-input[type="checkbox"]:checked::before {
+            transform: translateY(-50%) translateX(1.5rem);
+            background: white;
         }
         
         .priority-list {
@@ -470,14 +517,46 @@
         .override-toggle {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
             color: #adadb8;
             cursor: pointer;
         }
         
-        .override-toggle input {
-            width: auto;
+        .override-toggle input[type="checkbox"] {
+            width: 3rem;
+            height: 1.5rem;
+            min-width: 3rem;
+            appearance: none;
+            -webkit-appearance: none;
+            background: #303033;
+            border-radius: 0.75rem;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.2s;
             margin: 0;
+            flex-shrink: 0;
+        }
+        
+        .override-toggle input[type="checkbox"]::before {
+            content: '';
+            position: absolute;
+            width: 1.1rem;
+            height: 1.1rem;
+            border-radius: 50%;
+            top: 50%;
+            left: 0.2rem;
+            transform: translateY(-50%);
+            background: #adadb8;
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        
+        .override-toggle input[type="checkbox"]:checked {
+            background: var(--twitch-purple);
+        }
+        
+        .override-toggle input[type="checkbox"]:checked::before {
+            transform: translateY(-50%) translateX(1.5rem);
+            background: white;
         }
         
         .streamer-settings-content {
@@ -512,11 +591,14 @@
                 Connected
             </span>
         </small>
-        <small style="color: #adadb8;">
-            <a href="https://github.com/PatrickWalther/twitch-miner-go" target="_blank" rel="noopener" style="color: #adadb8; text-decoration: none;">
+        <small style="color: #adadb8; display: flex; align-items: center; gap: 0.5rem;">
+            <a href="https://github.com/PatrickWalther/twitch-miner-go" target="_blank" rel="noopener" style="color: #adadb8; text-decoration: none; display: flex; align-items: center; gap: 0.4rem;" title="View on GitHub">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink: 0;">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
                 twitch-miner-go
             </a>
-            {{if .Version}} {{.Version}}{{end}}
+            {{if .Version}}<span>{{.Version}}</span>{{end}}
         </small>
     </footer>
     

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/PatrickWalther/twitch-miner-go/internal/api"
+	"github.com/PatrickWalther/twitch-miner-go/internal/config"
 	"github.com/PatrickWalther/twitch-miner-go/internal/constants"
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
 )
@@ -17,6 +18,7 @@ type WebSocketPool struct {
 	client     *api.TwitchClient
 	streamers  []*models.Streamer
 	authToken  string
+	settings   config.RateLimitSettings
 	predictions map[string]*models.EventPrediction
 
 	onMessage MessageHandler
@@ -24,11 +26,12 @@ type WebSocketPool struct {
 	mu sync.RWMutex
 }
 
-func NewWebSocketPool(twitchClient *api.TwitchClient, authToken string, streamers []*models.Streamer) *WebSocketPool {
+func NewWebSocketPool(twitchClient *api.TwitchClient, authToken string, streamers []*models.Streamer, settings config.RateLimitSettings) *WebSocketPool {
 	return &WebSocketPool{
 		client:      twitchClient,
 		streamers:   streamers,
 		authToken:   authToken,
+		settings:    settings,
 		predictions: make(map[string]*models.EventPrediction),
 	}
 }
@@ -42,7 +45,7 @@ func (p *WebSocketPool) Submit(topic Topic) error {
 	defer p.mu.Unlock()
 
 	if len(p.clients) == 0 || p.clients[len(p.clients)-1].TopicCount() >= constants.MaxTopicsPerConnection {
-		ws := NewWebSocketClient(len(p.clients), p.authToken, p.handleMessage, p.handleError)
+		ws := NewWebSocketClient(len(p.clients), p.authToken, p.settings.WebsocketPingInterval, p.handleMessage, p.handleError)
 		if err := ws.Connect(); err != nil {
 			return err
 		}

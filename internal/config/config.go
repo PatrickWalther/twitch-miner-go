@@ -77,11 +77,11 @@ func DefaultConfig() Config {
 func DefaultRateLimitSettings() RateLimitSettings {
 	return RateLimitSettings{
 		WebsocketPingInterval:  27,
-		CampaignSyncInterval:   30,
-		MinuteWatchedInterval:  20,
+		CampaignSyncInterval:   60,
+		MinuteWatchedInterval:  60,
 		RequestDelay:           0.5,
 		ReconnectDelay:         60,
-		StreamCheckInterval:    30,
+		StreamCheckInterval:    600,
 	}
 }
 
@@ -144,10 +144,10 @@ func ValidateConfig(config *Config) {
 		config.RateLimits.CampaignSyncInterval = 120
 	}
 
-	if config.RateLimits.MinuteWatchedInterval < 15 {
-		config.RateLimits.MinuteWatchedInterval = 15
-	} else if config.RateLimits.MinuteWatchedInterval > 60 {
-		config.RateLimits.MinuteWatchedInterval = 60
+	if config.RateLimits.MinuteWatchedInterval < 30 {
+		config.RateLimits.MinuteWatchedInterval = 30
+	} else if config.RateLimits.MinuteWatchedInterval > 120 {
+		config.RateLimits.MinuteWatchedInterval = 120
 	}
 
 	if config.RateLimits.RequestDelay < 0.1 {
@@ -162,9 +162,9 @@ func ValidateConfig(config *Config) {
 		config.RateLimits.ReconnectDelay = 300
 	}
 
-	if config.RateLimits.StreamCheckInterval < 15 {
-		config.RateLimits.StreamCheckInterval = 15
-	} else if config.RateLimits.StreamCheckInterval > 120 {
-		config.RateLimits.StreamCheckInterval = 120
+	if config.RateLimits.StreamCheckInterval < 60 {
+		config.RateLimits.StreamCheckInterval = 60
+	} else if config.RateLimits.StreamCheckInterval > 900 {
+		config.RateLimits.StreamCheckInterval = 900
 	}
 }

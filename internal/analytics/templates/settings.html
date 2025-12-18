@@ -5,40 +5,59 @@
 <p style="color: #adadb8; margin-bottom: 2rem;">Configure runtime settings. Changes take effect immediately.</p>
 
 <form id="settings-form">
-    <div class="settings-section">
-        <h3>Streamers</h3>
-        <p style="color: #adadb8; font-size: 0.875rem; margin-bottom: 1rem;">
-            Manage streamers to track. Drag to reorder. Click to expand per-streamer settings.
-        </p>
-        
-        <div class="add-streamer-row">
-            <input type="text" id="new-streamer-input" placeholder="Enter streamer username" class="setting-input" style="flex: 1;">
-            <button type="button" id="add-streamer-btn" class="save-btn" style="padding: 0.5rem 1rem;">Add Streamer</button>
-        </div>
-        
-        <ul class="streamer-list" id="streamer-list">
-        </ul>
-    </div>
+            <div class="settings-section collapsible collapsed" id="streamers">
+                <h3 class="section-header" onclick="toggleSection(this)">
+                    <span>Streamers</span>
+                    <span class="collapse-icon">▼</span>
+                </h3>
+                <div class="section-content">
+                    <p style="color: #adadb8; font-size: 0.875rem; margin-bottom: 1rem;">
+                        Manage streamers to track. Drag to reorder. Click to expand per-streamer settings.
+                    </p>
+                    
+                    <div class="add-streamer-row">
+                        <input type="text" id="new-streamer-input" placeholder="Enter streamer username" class="setting-input" style="flex: 1; max-width: none; width: auto;">
+                        <button type="button" id="add-streamer-btn" class="save-btn" style="padding: 0.5rem 1rem;">Add Streamer</button>
+                    </div>
+                    
+                    <ul class="streamer-list" id="streamer-list">
+                    </ul>
+                </div>
+            </div>
 
-    <div class="settings-section">
-        <h3>Default Streamer Settings</h3>
-        <p style="color: #adadb8; font-size: 0.875rem; margin-bottom: 1rem;">
-            These settings apply to all streamers unless overridden individually.
-        </p>
-        <div id="default-settings-container"></div>
-    </div>
+            <div class="settings-section collapsible collapsed" id="defaults">
+                <h3 class="section-header" onclick="toggleSection(this)">
+                    <span>Default Streamer Settings</span>
+                    <span class="collapse-icon">▼</span>
+                </h3>
+                <div class="section-content">
+                    <p style="color: #adadb8; font-size: 0.875rem; margin-bottom: 1rem;">
+                        These settings apply to all streamers unless overridden individually.
+                    </p>
+                    <div id="default-settings-container"></div>
+                </div>
+            </div>
 
-    <div class="settings-section">
-        <h3>Priority Order</h3>
-        <p style="color: #adadb8; font-size: 0.875rem; margin-bottom: 1rem;">
-            Drag to reorder. Higher priority items are checked first when selecting which stream to watch.
-        </p>
-        <ul class="priority-list" id="priority-list">
-        </ul>
-    </div>
+            <div class="settings-section collapsible collapsed" id="priority">
+                <h3 class="section-header" onclick="toggleSection(this)">
+                    <span>Priority Order</span>
+                    <span class="collapse-icon">▼</span>
+                </h3>
+                <div class="section-content">
+                    <p style="color: #adadb8; font-size: 0.875rem; margin-bottom: 1rem;">
+                        Drag to reorder. Higher priority items are checked first when selecting which stream to watch.
+                    </p>
+                    <ul class="priority-list" id="priority-list">
+                    </ul>
+                </div>
+            </div>
 
-    <div class="settings-section">
-        <h3>Rate Limits</h3>
+            <div class="settings-section collapsible collapsed" id="ratelimits">
+                <h3 class="section-header" onclick="toggleSection(this)">
+                    <span>Rate Limits</span>
+                    <span class="collapse-icon">▼</span>
+                </h3>
+                <div class="section-content">
         
         <div class="setting-row">
             <div>
@@ -59,9 +78,9 @@
         <div class="setting-row">
             <div>
                 <div class="setting-label">Minute Watched Interval</div>
-                <div class="setting-description">Seconds between minute watched events (15-60)</div>
+                <div class="setting-description">Base seconds between minute watched cycles (30-120, divided by # of streamers)</div>
             </div>
-            <input type="number" class="setting-input" id="minuteWatchedInterval" min="15" max="60">
+            <input type="number" class="setting-input" id="minuteWatchedInterval" min="30" max="120">
         </div>
         
         <div class="setting-row">
@@ -83,87 +102,96 @@
         <div class="setting-row">
             <div>
                 <div class="setting-label">Stream Check Interval</div>
-                <div class="setting-description">Seconds between stream online checks (15-120)</div>
+                <div class="setting-description">Seconds between stream online checks (60-900)</div>
             </div>
-            <input type="number" class="setting-input" id="streamCheckInterval" min="15" max="120">
-        </div>
-    </div>
+            <input type="number" class="setting-input" id="streamCheckInterval" min="60" max="900">
+                    </div>
+                </div>
+            </div>
 
-    <div class="settings-section">
-        <h3>Logger</h3>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Console Log Level</div>
-                <div class="setting-description">Minimum log level shown in console</div>
+            <div class="settings-section collapsible collapsed" id="logger">
+                <h3 class="section-header" onclick="toggleSection(this)">
+                    <span>Logger</span>
+                    <span class="collapse-icon">▼</span>
+                </h3>
+                <div class="section-content">
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Console Log Level</div>
+                            <div class="setting-description">Minimum log level shown in console</div>
+                        </div>
+                        <select class="setting-input" id="consoleLevel">
+                            <option value="DEBUG">DEBUG</option>
+                            <option value="INFO">INFO</option>
+                            <option value="WARN">WARN</option>
+                            <option value="ERROR">ERROR</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">File Log Level</div>
+                            <div class="setting-description">Minimum log level saved to file</div>
+                        </div>
+                        <select class="setting-input" id="fileLevel">
+                            <option value="DEBUG">DEBUG</option>
+                            <option value="INFO">INFO</option>
+                            <option value="WARN">WARN</option>
+                            <option value="ERROR">ERROR</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Less Verbose</div>
+                            <div class="setting-description">Reduce log output verbosity</div>
+                        </div>
+                        <input type="checkbox" class="setting-input" id="less">
+                    </div>
+                    
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Colored Output</div>
+                            <div class="setting-description">Enable colored console output</div>
+                        </div>
+                        <input type="checkbox" class="setting-input" id="colored">
+                    </div>
+                </div>
             </div>
-            <select class="setting-input" id="consoleLevel">
-                <option value="DEBUG">DEBUG</option>
-                <option value="INFO">INFO</option>
-                <option value="WARN">WARN</option>
-                <option value="ERROR">ERROR</option>
-            </select>
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">File Log Level</div>
-                <div class="setting-description">Minimum log level saved to file</div>
-            </div>
-            <select class="setting-input" id="fileLevel">
-                <option value="DEBUG">DEBUG</option>
-                <option value="INFO">INFO</option>
-                <option value="WARN">WARN</option>
-                <option value="ERROR">ERROR</option>
-            </select>
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Less Verbose</div>
-                <div class="setting-description">Reduce log output verbosity</div>
-            </div>
-            <input type="checkbox" class="setting-input" id="less">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Colored Output</div>
-                <div class="setting-description">Enable colored console output</div>
-            </div>
-            <input type="checkbox" class="setting-input" id="colored">
-        </div>
-    </div>
 
-    <div class="settings-section">
-        <h3>Analytics</h3>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Refresh Interval</div>
-                <div class="setting-description">Minutes between dashboard auto-refresh</div>
+            <div class="settings-section collapsible collapsed" id="analytics">
+                <h3 class="section-header" onclick="toggleSection(this)">
+                    <span>Analytics</span>
+                    <span class="collapse-icon">▼</span>
+                </h3>
+                <div class="section-content">
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Refresh Interval</div>
+                            <div class="setting-description">Minutes between dashboard auto-refresh</div>
+                        </div>
+                        <input type="number" class="setting-input" id="refresh" min="1" max="60">
+                    </div>
+                    
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Days of History</div>
+                            <div class="setting-description">Number of days to show in charts</div>
+                        </div>
+                        <input type="number" class="setting-input" id="daysAgo" min="1" max="365">
+                    </div>
+                    
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Enable Chat Logs</div>
+                            <div class="setting-description">Log chat messages to database</div>
+                        </div>
+                        <input type="checkbox" class="setting-input" id="enableChatLogs">
+                    </div>
+                </div>
             </div>
-            <input type="number" class="setting-input" id="refresh" min="1" max="60">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Days of History</div>
-                <div class="setting-description">Number of days to show in charts</div>
-            </div>
-            <input type="number" class="setting-input" id="daysAgo" min="1" max="365">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Enable Chat Logs</div>
-                <div class="setting-description">Log chat messages to database</div>
-            </div>
-            <input type="checkbox" class="setting-input" id="enableChatLogs">
-        </div>
-    </div>
 
-    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
         <button type="button" class="save-btn" id="reset-btn" style="background: #303033;">Reset to Defaults</button>
         <button type="submit" class="save-btn" id="save-btn">Save Settings</button>
     </div>
@@ -173,7 +201,45 @@
 {{end}}
 
 {{define "scripts"}}
+<style>
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+    }
+    
+    .section-header:hover {
+        color: #b380ff;
+    }
+    
+    .collapse-icon {
+        font-size: 0.6rem;
+        color: #adadb8;
+        transition: transform 0.2s;
+    }
+    
+    .settings-section.collapsed .collapse-icon {
+        transform: rotate(-90deg);
+    }
+    
+    .settings-section.collapsed .section-content {
+        display: none;
+    }
+    
+    .section-content {
+        margin-top: 1rem;
+    }
+</style>
 <script>
+    function toggleSection(header) {
+        const section = header.closest('.settings-section');
+        section.classList.toggle('collapsed');
+    }
+
     const priorityLabels = {
         'STREAK': 'Watch Streak',
         'DROPS': 'Drops',

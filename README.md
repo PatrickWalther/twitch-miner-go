@@ -112,11 +112,11 @@ This creates `config.sample.json`. Rename it to `config.json` and update with yo
   ],
   "rateLimits": {
     "websocketPingInterval": 27,
-    "campaignSyncInterval": 30,
-    "minuteWatchedInterval": 20,
+    "campaignSyncInterval": 60,
+    "minuteWatchedInterval": 60,
     "requestDelay": 0.5,
     "reconnectDelay": 60,
-    "streamCheckInterval": 30
+    "streamCheckInterval": 600
   }
 }
 ```
@@ -215,16 +215,16 @@ When `enableChatLogs` is enabled:
 
 ## Rate Limits
 
-All rate limits are configurable:
+All rate limits are configurable. Defaults are tuned to match the Python miner and avoid Twitch rate limiting:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `websocketPingInterval` | 27 | Seconds between WebSocket pings (20-60) |
-| `campaignSyncInterval` | 30 | Minutes between drop campaign syncs (5-120) |
-| `minuteWatchedInterval` | 20 | Seconds between minute-watched events (15-60) |
+| `websocketPingInterval` | 27 | Base seconds between WebSocket pings (20-60), ±2.5s random jitter applied |
+| `campaignSyncInterval` | 60 | Minutes between drop campaign syncs (5-120) |
+| `minuteWatchedInterval` | 60 | Base seconds for minute-watched cycle (30-120), divided by # of active streamers |
 | `requestDelay` | 0.5 | Seconds between consecutive API calls (0.1-2.0) |
 | `reconnectDelay` | 60 | Seconds to wait before reconnecting (30-300) |
-| `streamCheckInterval` | 30 | Seconds between stream status checks (15-120) |
+| `streamCheckInterval` | 600 | Seconds between stream status checks (60-900) |
 
 ## License
 

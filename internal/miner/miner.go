@@ -164,7 +164,7 @@ func (m *Miner) loadStreamers() error {
 }
 
 func (m *Miner) setupComponents() {
-	m.wsPool = pubsub.NewWebSocketPool(m.client, m.auth.GetAuthToken(), m.streamers)
+	m.wsPool = pubsub.NewWebSocketPool(m.client, m.auth.GetAuthToken(), m.streamers, m.config.RateLimits)
 	m.wsPool.SetMessageHandler(m.handlePubSubMessage)
 
 	if m.config.EnableAnalytics {
