@@ -83,7 +83,7 @@ func NewAnalyticsServer(settings config.AnalyticsSettings, username string, stre
 		repo:      repo,
 		templates: templates,
 		status:    NewStatusBroadcaster(),
-		ready:     streamers != nil && len(streamers) > 0,
+		ready:     len(streamers) > 0,
 	}
 }
 
