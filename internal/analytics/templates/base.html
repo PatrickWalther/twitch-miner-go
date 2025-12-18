@@ -39,43 +39,36 @@
             gap: 1.5rem;
         }
         
-        .streamer-card {
-            background: #18181b;
-            border: 1px solid #303033;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            transition: border-color 0.2s, transform 0.2s;
+        .streamer-grid article {
             cursor: pointer;
+            transition: border-color 0.2s, transform 0.2s;
         }
         
-        .streamer-card:hover {
+        .streamer-grid article:hover {
             border-color: var(--twitch-purple);
             transform: translateY(-2px);
         }
         
-        .streamer-card h3 {
+        .streamer-grid article h3 {
             margin: 0 0 0.5rem 0;
             color: var(--twitch-purple);
         }
         
-        .streamer-card .points {
+        .streamer-grid article .points {
             font-size: 2rem;
             font-weight: bold;
-            color: #efeff1;
         }
         
-        .streamer-card .points-label {
-            color: #adadb8;
+        .streamer-grid article .points-label {
             font-size: 0.875rem;
         }
         
-        .streamer-card .last-activity {
-            color: #adadb8;
+        .streamer-grid article .last-activity {
             font-size: 0.75rem;
             margin-top: 0.5rem;
         }
         
-        .streamer-card.is-live {
+        .streamer-grid article.is-live {
             border-color: #eb0400;
             box-shadow: 0 0 10px rgba(235, 4, 0, 0.3);
             position: relative;
@@ -83,8 +76,8 @@
         
         .stream-link {
             position: absolute;
-            top: 0.75rem;
-            right: 0.75rem;
+            top: 0.5rem;
+            right: 0.5rem;
             color: #adadb8;
             width: 1.25rem;
             height: 1.25rem;
@@ -92,6 +85,7 @@
             align-items: center;
             justify-content: center;
             transition: color 0.2s;
+            z-index: 1;
         }
         
         .stream-link:hover {
@@ -106,11 +100,12 @@
             fill: none;
         }
         
-        .streamer-card .card-header {
+        .streamer-grid article .card-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 0.5rem;
+            padding-right: 1.75rem;
         }
         
         .live-badge {
@@ -157,30 +152,13 @@
             letter-spacing: 0.5px;
         }
         
-        .stats-row {
-            display: flex;
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-        
-        .stat-card {
-            background: #18181b;
-            border: 1px solid #303033;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            flex: 1;
-            text-align: center;
-        }
-        
-        .stat-card .value {
-            font-size: 2.5rem;
-            font-weight: bold;
+        .stat-value {
             color: var(--twitch-purple);
+            margin-bottom: 0;
         }
         
-        .stat-card .label {
-            color: #adadb8;
-            font-size: 0.875rem;
+        .grid article {
+            text-align: center;
         }
         
         .chart-container {
@@ -234,19 +212,33 @@
             background-color: rgba(145, 70, 255, 0.1);
         }
         
-        .settings-section {
-            background: #18181b;
-            border: 1px solid #303033;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+        .add-streamer-row {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
         }
         
-        .settings-section h3 {
-            color: var(--twitch-purple);
-            margin-top: 0;
-            margin-bottom: 1rem;
-            font-size: 1.1rem;
+        .add-streamer-row input {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .add-streamer-row button {
+            white-space: nowrap;
+            width: auto;
+            margin-bottom: 0;
+        }
+        
+        .button-row {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+        
+        .button-row button {
+            width: auto;
+            margin-bottom: 0;
         }
         
         .setting-row {
@@ -281,50 +273,19 @@
         }
         
         .setting-input[type="number"] {
-            width: 100px;
-            min-width: 100px;
-            max-width: 100px;
+            width: 120px;
+            min-width: 120px;
+            max-width: 120px;
         }
         
         select.setting-input {
-            width: 180px;
+            width: auto;
             min-width: 180px;
-            max-width: 180px;
         }
         
         .setting-input[type="checkbox"] {
-            width: 3rem;
-            height: 1.5rem;
+            width: auto;
             min-width: auto;
-            appearance: none;
-            -webkit-appearance: none;
-            background: #303033;
-            border-radius: 0.75rem;
-            position: relative;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        
-        .setting-input[type="checkbox"]::before {
-            content: '';
-            position: absolute;
-            width: 1.1rem;
-            height: 1.1rem;
-            border-radius: 50%;
-            top: 50%;
-            left: 0.2rem;
-            transform: translateY(-50%);
-            background: #adadb8;
-            transition: transform 0.2s, background-color 0.2s;
-        }
-        
-        .setting-input[type="checkbox"]:checked {
-            background: var(--twitch-purple);
-        }
-        
-        .setting-input[type="checkbox"]:checked::before {
-            transform: translateY(-50%) translateX(1.5rem);
-            background: white;
         }
         
         .priority-list {
@@ -359,26 +320,6 @@
             border-color: var(--twitch-purple);
         }
         
-        .save-btn {
-            background: var(--twitch-purple);
-            color: white;
-            border: none;
-            padding: 0.75rem 2rem;
-            border-radius: 0.25rem;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.2s;
-        }
-        
-        .save-btn:hover {
-            background: var(--twitch-purple-dark);
-        }
-        
-        .save-btn:disabled {
-            background: #303033;
-            cursor: not-allowed;
-        }
-        
         .toast {
             position: fixed;
             bottom: 2rem;
@@ -408,12 +349,6 @@
                 transform: translateX(0);
                 opacity: 1;
             }
-        }
-        
-        .add-streamer-row {
-            display: flex;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
         }
         
         .streamer-list {
@@ -514,50 +449,7 @@
             border-bottom: 1px solid #303033;
         }
         
-        .override-toggle {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            color: #adadb8;
-            cursor: pointer;
-        }
-        
-        .override-toggle input[type="checkbox"] {
-            width: 3rem;
-            height: 1.5rem;
-            min-width: 3rem;
-            appearance: none;
-            -webkit-appearance: none;
-            background: #303033;
-            border-radius: 0.75rem;
-            position: relative;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            margin: 0;
-            flex-shrink: 0;
-        }
-        
-        .override-toggle input[type="checkbox"]::before {
-            content: '';
-            position: absolute;
-            width: 1.1rem;
-            height: 1.1rem;
-            border-radius: 50%;
-            top: 50%;
-            left: 0.2rem;
-            transform: translateY(-50%);
-            background: #adadb8;
-            transition: transform 0.2s, background-color 0.2s;
-        }
-        
-        .override-toggle input[type="checkbox"]:checked {
-            background: var(--twitch-purple);
-        }
-        
-        .override-toggle input[type="checkbox"]:checked::before {
-            transform: translateY(-50%) translateX(1.5rem);
-            background: white;
-        }
+
         
         .streamer-settings-content {
             padding: 0.5rem 1rem 1rem 1rem;
@@ -591,15 +483,12 @@
                 Connected
             </span>
         </small>
-        <small style="color: #adadb8; display: flex; align-items: center; gap: 0.5rem;">
-            <a href="https://github.com/PatrickWalther/twitch-miner-go" target="_blank" rel="noopener" style="color: #adadb8; text-decoration: none; display: flex; align-items: center; gap: 0.4rem;" title="View on GitHub">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink: 0;">
-                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-                </svg>
-                twitch-miner-go
-            </a>
-            {{if .Version}}<span>{{.Version}}</span>{{end}}
-        </small>
+        <a href="https://github.com/PatrickWalther/twitch-miner-go" target="_blank" rel="noopener" title="View on GitHub" style="color: #adadb8;">
+            <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+        </a>
+        {{if .Version}}<small style="color: #adadb8;">{{.Version}}</small>{{end}}
     </footer>
     
     {{block "scripts" .}}{{end}}

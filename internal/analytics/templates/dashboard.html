@@ -3,20 +3,20 @@
 {{define "content"}}
 <h1>Dashboard</h1>
 
-<div class="stats-row">
-    <article class="stat-card">
-        <div class="value">{{.TotalPoints}}</div>
-        <div class="label">Total Points</div>
+<section class="grid">
+    <article>
+        <h2 class="stat-value">{{.TotalPoints}}</h2>
+        <p>Total Points</p>
     </article>
-    <article class="stat-card">
-        <div class="value">{{.StreamerCount}}</div>
-        <div class="label">Streamers</div>
+    <article>
+        <h2 class="stat-value">{{.StreamerCount}}</h2>
+        <p>Streamers</p>
     </article>
-    <article class="stat-card">
-        <div class="value">{{.PointsToday}}</div>
-        <div class="label">Points Today</div>
+    <article>
+        <h2 class="stat-value">{{.PointsToday}}</h2>
+        <p>Points Today</p>
     </article>
-</div>
+</section>
 
 <section 
     hx-get="/api/streamers" 
