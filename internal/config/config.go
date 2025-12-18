@@ -117,7 +117,7 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 
-	validateConfig(&config)
+	ValidateConfig(&config)
 	return &config, nil
 }
 
@@ -129,7 +129,9 @@ func SaveConfig(path string, config *Config) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func validateConfig(config *Config) {
+// ValidateConfig enforces min/max bounds on rate limits and other configurable values.
+// It mutates the config in place, clamping out-of-range values to valid bounds.
+func ValidateConfig(config *Config) {
 	if config.RateLimits.WebsocketPingInterval < 20 {
 		config.RateLimits.WebsocketPingInterval = 20
 	} else if config.RateLimits.WebsocketPingInterval > 60 {

@@ -10,10 +10,10 @@ import (
 	"github.com/PatrickWalther/twitch-miner-go/internal/logger"
 	"github.com/PatrickWalther/twitch-miner-go/internal/miner"
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
+	"github.com/PatrickWalther/twitch-miner-go/internal/version"
 )
 
 var (
-	version    = "dev"
 	configFile = flag.String("config", "config.json", "Path to configuration file")
 	debug      = flag.Bool("debug", false, "Enable debug logging")
 	genConfig  = flag.Bool("generate-config", false, "Generate a sample configuration file")
@@ -61,9 +61,9 @@ func main() {
 	}
 	defer log.Close()
 
-	slog.Info("Twitch Channel Points Miner", "version", version)
+	slog.Info("Twitch Channel Points Miner", "version", version.Version)
 
-	m := miner.New(cfg)
+	m := miner.New(cfg, *configFile)
 	if err := m.Run(); err != nil {
 		slog.Error("Miner error", "error", err)
 		os.Exit(1)

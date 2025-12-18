@@ -1,0 +1,653 @@
+{{define "title"}}Settings - Twitch Points Miner{{end}}
+
+{{define "content"}}
+<h1>Settings</h1>
+<p style="color: #adadb8; margin-bottom: 2rem;">Configure runtime settings. Changes take effect immediately.</p>
+
+<form id="settings-form">
+    <div class="settings-section">
+        <h3>Streamers</h3>
+        <p style="color: #adadb8; font-size: 0.875rem; margin-bottom: 1rem;">
+            Manage streamers to track. Drag to reorder. Click to expand per-streamer settings.
+        </p>
+        
+        <div class="add-streamer-row">
+            <input type="text" id="new-streamer-input" placeholder="Enter streamer username" class="setting-input" style="flex: 1;">
+            <button type="button" id="add-streamer-btn" class="save-btn" style="padding: 0.5rem 1rem;">Add Streamer</button>
+        </div>
+        
+        <ul class="streamer-list" id="streamer-list">
+        </ul>
+    </div>
+
+    <div class="settings-section">
+        <h3>Default Streamer Settings</h3>
+        <p style="color: #adadb8; font-size: 0.875rem; margin-bottom: 1rem;">
+            These settings apply to all streamers unless overridden individually.
+        </p>
+        <div id="default-settings-container"></div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Priority Order</h3>
+        <p style="color: #adadb8; font-size: 0.875rem; margin-bottom: 1rem;">
+            Drag to reorder. Higher priority items are checked first when selecting which stream to watch.
+        </p>
+        <ul class="priority-list" id="priority-list">
+        </ul>
+    </div>
+
+    <div class="settings-section">
+        <h3>Rate Limits</h3>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Websocket Ping Interval</div>
+                <div class="setting-description">Seconds between websocket ping messages (20-60)</div>
+            </div>
+            <input type="number" class="setting-input" id="websocketPingInterval" min="20" max="60">
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Campaign Sync Interval</div>
+                <div class="setting-description">Seconds between drop campaign syncs (5-120)</div>
+            </div>
+            <input type="number" class="setting-input" id="campaignSyncInterval" min="5" max="120">
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Minute Watched Interval</div>
+                <div class="setting-description">Seconds between minute watched events (15-60)</div>
+            </div>
+            <input type="number" class="setting-input" id="minuteWatchedInterval" min="15" max="60">
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Request Delay</div>
+                <div class="setting-description">Seconds delay between API requests (0.1-2.0)</div>
+            </div>
+            <input type="number" class="setting-input" id="requestDelay" min="0.1" max="2.0" step="0.1">
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Reconnect Delay</div>
+                <div class="setting-description">Seconds to wait before reconnecting (30-300)</div>
+            </div>
+            <input type="number" class="setting-input" id="reconnectDelay" min="30" max="300">
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Stream Check Interval</div>
+                <div class="setting-description">Seconds between stream online checks (15-120)</div>
+            </div>
+            <input type="number" class="setting-input" id="streamCheckInterval" min="15" max="120">
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Logger</h3>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Console Log Level</div>
+                <div class="setting-description">Minimum log level shown in console</div>
+            </div>
+            <select class="setting-input" id="consoleLevel">
+                <option value="DEBUG">DEBUG</option>
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+            </select>
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">File Log Level</div>
+                <div class="setting-description">Minimum log level saved to file</div>
+            </div>
+            <select class="setting-input" id="fileLevel">
+                <option value="DEBUG">DEBUG</option>
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+            </select>
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Less Verbose</div>
+                <div class="setting-description">Reduce log output verbosity</div>
+            </div>
+            <input type="checkbox" class="setting-input" id="less">
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Colored Output</div>
+                <div class="setting-description">Enable colored console output</div>
+            </div>
+            <input type="checkbox" class="setting-input" id="colored">
+        </div>
+    </div>
+
+    <div class="settings-section">
+        <h3>Analytics</h3>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Refresh Interval</div>
+                <div class="setting-description">Minutes between dashboard auto-refresh</div>
+            </div>
+            <input type="number" class="setting-input" id="refresh" min="1" max="60">
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Days of History</div>
+                <div class="setting-description">Number of days to show in charts</div>
+            </div>
+            <input type="number" class="setting-input" id="daysAgo" min="1" max="365">
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Enable Chat Logs</div>
+                <div class="setting-description">Log chat messages to database</div>
+            </div>
+            <input type="checkbox" class="setting-input" id="enableChatLogs">
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+        <button type="button" class="save-btn" id="reset-btn" style="background: #303033;">Reset to Defaults</button>
+        <button type="submit" class="save-btn" id="save-btn">Save Settings</button>
+    </div>
+</form>
+
+<div id="toast-container"></div>
+{{end}}
+
+{{define "scripts"}}
+<script>
+    const priorityLabels = {
+        'STREAK': 'Watch Streak',
+        'DROPS': 'Drops',
+        'ORDER': 'Config Order',
+        'SUBSCRIBED': 'Subscribed Channels',
+        'POINTS_ASCENDING': 'Points (Lowest First)',
+        'POINTS_DESCENDING': 'Points (Highest First)'
+    };
+
+    const chatOptions = [
+        { value: 'ONLINE', label: 'When Online' },
+        { value: 'OFFLINE', label: 'When Offline' },
+        { value: 'ALWAYS', label: 'Always' },
+        { value: 'NEVER', label: 'Never' }
+    ];
+
+    const strategyOptions = [
+        { value: 'SMART', label: 'Smart' },
+        { value: 'MOST_VOTED', label: 'Most Voted' },
+        { value: 'HIGH_ODDS', label: 'High Odds' },
+        { value: 'PERCENTAGE', label: 'Percentage' },
+        { value: 'SMART_MONEY', label: 'Smart Money' },
+        { value: 'NUMBER_1', label: 'Always #1' },
+        { value: 'NUMBER_2', label: 'Always #2' }
+    ];
+
+    const delayModeOptions = [
+        { value: 'FROM_END', label: 'From End' },
+        { value: 'FROM_START', label: 'From Start' },
+        { value: 'PERCENTAGE', label: 'Percentage' }
+    ];
+
+    let currentSettings = null;
+
+    async function loadSettings() {
+        try {
+            const response = await fetch('/api/settings');
+            if (!response.ok) throw new Error('Failed to load settings');
+            currentSettings = await response.json();
+            populateForm(currentSettings);
+        } catch (error) {
+            showToast('Failed to load settings', 'error');
+            console.error(error);
+        }
+    }
+
+    function populateForm(settings) {
+        // Streamers
+        populateStreamerList(settings.streamers || []);
+        
+        // Default settings
+        const defaultContainer = document.getElementById('default-settings-container');
+        defaultContainer.innerHTML = renderStreamerSettingsForm('default', settings.defaultSettings || {}, false);
+
+        // Priority
+        const priorityList = document.getElementById('priority-list');
+        priorityList.innerHTML = '';
+        settings.priority.forEach(p => {
+            const li = document.createElement('li');
+            li.className = 'priority-item';
+            li.draggable = true;
+            li.dataset.priority = p;
+            li.innerHTML = `<span class="priority-handle">☰</span> ${priorityLabels[p] || p}`;
+            priorityList.appendChild(li);
+        });
+        setupPriorityDragAndDrop();
+
+        // Rate limits
+        document.getElementById('websocketPingInterval').value = settings.rateLimits.websocketPingInterval;
+        document.getElementById('campaignSyncInterval').value = settings.rateLimits.campaignSyncInterval;
+        document.getElementById('minuteWatchedInterval').value = settings.rateLimits.minuteWatchedInterval;
+        document.getElementById('requestDelay').value = settings.rateLimits.requestDelay;
+        document.getElementById('reconnectDelay').value = settings.rateLimits.reconnectDelay;
+        document.getElementById('streamCheckInterval').value = settings.rateLimits.streamCheckInterval;
+
+        // Logger
+        document.getElementById('consoleLevel').value = settings.logger.consoleLevel;
+        document.getElementById('fileLevel').value = settings.logger.fileLevel;
+        document.getElementById('less').checked = settings.logger.less;
+        document.getElementById('colored').checked = settings.logger.colored;
+
+        // Analytics
+        document.getElementById('refresh').value = settings.analytics.refresh;
+        document.getElementById('daysAgo').value = settings.analytics.daysAgo;
+        document.getElementById('enableChatLogs').checked = settings.analytics.enableChatLogs;
+    }
+
+    function populateStreamerList(streamers) {
+        const list = document.getElementById('streamer-list');
+        list.innerHTML = '';
+        streamers.forEach((s, index) => {
+            const li = createStreamerItem(s, index);
+            list.appendChild(li);
+        });
+        setupStreamerDragAndDrop();
+    }
+
+    function createStreamerItem(streamer, index) {
+        const li = document.createElement('li');
+        li.className = 'streamer-item';
+        li.draggable = true;
+        li.dataset.index = index;
+        li.dataset.username = streamer.username;
+
+        const hasOverrides = streamer.settings && Object.keys(streamer.settings).length > 0;
+        
+        li.innerHTML = `
+            <div class="streamer-header" onclick="toggleStreamerExpand(this.parentElement)">
+                <div class="streamer-drag-handle">☰</div>
+                <span class="streamer-name">${streamer.username}</span>
+                ${hasOverrides ? '<span class="override-badge">Custom</span>' : ''}
+                <span class="streamer-expand-icon">▼</span>
+                <button type="button" class="streamer-remove-btn" onclick="event.stopPropagation(); removeStreamer('${streamer.username}')">✕</button>
+            </div>
+            <div class="streamer-settings-panel">
+                <div class="streamer-settings-header">
+                    <label class="override-toggle">
+                        <input type="checkbox" class="use-override-checkbox" ${hasOverrides ? 'checked' : ''} 
+                               onchange="toggleOverride(this, '${streamer.username}')">
+                        <span>Use custom settings for this streamer</span>
+                    </label>
+                </div>
+                <div class="streamer-settings-content" style="${hasOverrides ? '' : 'display: none;'}">
+                    ${renderStreamerSettingsForm(streamer.username, streamer.settings || {}, true)}
+                </div>
+            </div>
+        `;
+        return li;
+    }
+
+    function renderStreamerSettingsForm(prefix, settings, isOverride) {
+        const bet = settings.bet || {};
+        const checkboxAttrs = (field, value) => {
+            if (value === undefined || value === null) return '';
+            return value ? 'checked' : '';
+        };
+        const selectValue = (field, value, defaultVal) => value !== undefined && value !== null ? value : defaultVal;
+
+        return `
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Make Predictions</div>
+                    <div class="setting-description">Automatically bet on predictions</div>
+                </div>
+                <input type="checkbox" class="setting-input" data-field="makePredictions" data-prefix="${prefix}" ${checkboxAttrs('makePredictions', settings.makePredictions)}>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Follow Raid</div>
+                    <div class="setting-description">Follow when streamer raids another channel</div>
+                </div>
+                <input type="checkbox" class="setting-input" data-field="followRaid" data-prefix="${prefix}" ${checkboxAttrs('followRaid', settings.followRaid)}>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Claim Drops</div>
+                    <div class="setting-description">Automatically claim drop rewards</div>
+                </div>
+                <input type="checkbox" class="setting-input" data-field="claimDrops" data-prefix="${prefix}" ${checkboxAttrs('claimDrops', settings.claimDrops)}>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Claim Moments</div>
+                    <div class="setting-description">Claim channel moments</div>
+                </div>
+                <input type="checkbox" class="setting-input" data-field="claimMoments" data-prefix="${prefix}" ${checkboxAttrs('claimMoments', settings.claimMoments)}>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Watch Streak</div>
+                    <div class="setting-description">Maintain watch streak bonus</div>
+                </div>
+                <input type="checkbox" class="setting-input" data-field="watchStreak" data-prefix="${prefix}" ${checkboxAttrs('watchStreak', settings.watchStreak)}>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Community Goals</div>
+                    <div class="setting-description">Contribute to community goals</div>
+                </div>
+                <input type="checkbox" class="setting-input" data-field="communityGoals" data-prefix="${prefix}" ${checkboxAttrs('communityGoals', settings.communityGoals)}>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Chat Presence</div>
+                    <div class="setting-description">When to join chat</div>
+                </div>
+                <select class="setting-input" data-field="chat" data-prefix="${prefix}">
+                    ${chatOptions.map(o => `<option value="${o.value}" ${selectValue('chat', settings.chat, 'ONLINE') === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+                </select>
+            </div>
+            
+            <h4 style="color: var(--twitch-purple); margin: 1.5rem 0 1rem 0; font-size: 0.95rem;">Betting Settings</h4>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Strategy</div>
+                    <div class="setting-description">How to choose prediction outcome</div>
+                </div>
+                <select class="setting-input" data-field="bet.strategy" data-prefix="${prefix}">
+                    ${strategyOptions.map(o => `<option value="${o.value}" ${selectValue('strategy', bet.strategy, 'SMART') === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+                </select>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Bet Percentage</div>
+                    <div class="setting-description">Percentage of points to bet (1-100)</div>
+                </div>
+                <input type="number" class="setting-input" data-field="bet.percentage" data-prefix="${prefix}" min="1" max="100" value="${bet.percentage !== undefined ? bet.percentage : 5}">
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Percentage Gap</div>
+                    <div class="setting-description">Gap threshold for smart strategy</div>
+                </div>
+                <input type="number" class="setting-input" data-field="bet.percentageGap" data-prefix="${prefix}" min="0" max="100" value="${bet.percentageGap !== undefined ? bet.percentageGap : 20}">
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Max Points</div>
+                    <div class="setting-description">Maximum points to bet</div>
+                </div>
+                <input type="number" class="setting-input" data-field="bet.maxPoints" data-prefix="${prefix}" min="0" value="${bet.maxPoints !== undefined ? bet.maxPoints : 50000}">
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Minimum Points</div>
+                    <div class="setting-description">Minimum balance required to bet</div>
+                </div>
+                <input type="number" class="setting-input" data-field="bet.minimumPoints" data-prefix="${prefix}" min="0" value="${bet.minimumPoints !== undefined ? bet.minimumPoints : 0}">
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Stealth Mode</div>
+                    <div class="setting-description">Bet slightly less than top predictor</div>
+                </div>
+                <input type="checkbox" class="setting-input" data-field="bet.stealthMode" data-prefix="${prefix}" ${checkboxAttrs('stealthMode', bet.stealthMode)}>
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Delay</div>
+                    <div class="setting-description">Seconds to wait before betting</div>
+                </div>
+                <input type="number" class="setting-input" data-field="bet.delay" data-prefix="${prefix}" min="0" step="0.5" value="${bet.delay !== undefined ? bet.delay : 6}">
+            </div>
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Delay Mode</div>
+                    <div class="setting-description">How delay is calculated</div>
+                </div>
+                <select class="setting-input" data-field="bet.delayMode" data-prefix="${prefix}">
+                    ${delayModeOptions.map(o => `<option value="${o.value}" ${selectValue('delayMode', bet.delayMode, 'FROM_END') === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+                </select>
+            </div>
+        `;
+    }
+
+    function toggleStreamerExpand(li) {
+        li.classList.toggle('expanded');
+    }
+
+    function toggleOverride(checkbox, username) {
+        const panel = checkbox.closest('.streamer-settings-panel');
+        const content = panel.querySelector('.streamer-settings-content');
+        content.style.display = checkbox.checked ? '' : 'none';
+    }
+
+    function addStreamer() {
+        const input = document.getElementById('new-streamer-input');
+        const username = input.value.trim().toLowerCase();
+        if (!username) {
+            showToast('Please enter a username', 'error');
+            return;
+        }
+
+        const existing = document.querySelector(`.streamer-item[data-username="${username}"]`);
+        if (existing) {
+            showToast('Streamer already exists', 'error');
+            return;
+        }
+
+        const list = document.getElementById('streamer-list');
+        const index = list.children.length;
+        const li = createStreamerItem({ username, settings: null }, index);
+        list.appendChild(li);
+        setupStreamerDragAndDrop();
+        input.value = '';
+        showToast(`Added ${username}`);
+    }
+
+    function removeStreamer(username) {
+        if (!confirm(`Remove ${username}?`)) return;
+        const item = document.querySelector(`.streamer-item[data-username="${username}"]`);
+        if (item) {
+            item.remove();
+            showToast(`Removed ${username}`);
+        }
+    }
+
+    function gatherStreamerSettings(prefix) {
+        const settings = {};
+        const inputs = document.querySelectorAll(`[data-prefix="${prefix}"]`);
+        
+        inputs.forEach(input => {
+            const field = input.dataset.field;
+            let value;
+            
+            if (input.type === 'checkbox') {
+                value = input.checked;
+            } else if (input.type === 'number') {
+                value = input.step && input.step !== '1' ? parseFloat(input.value) : parseInt(input.value);
+            } else {
+                value = input.value;
+            }
+            
+            if (field.startsWith('bet.')) {
+                if (!settings.bet) settings.bet = {};
+                settings.bet[field.substring(4)] = value;
+            } else {
+                settings[field] = value;
+            }
+        });
+        
+        return settings;
+    }
+
+    function gatherStreamers() {
+        const items = document.querySelectorAll('.streamer-item');
+        const streamers = [];
+        
+        items.forEach(item => {
+            const username = item.dataset.username;
+            const useOverride = item.querySelector('.use-override-checkbox').checked;
+            
+            const streamer = { username };
+            if (useOverride) {
+                streamer.settings = gatherStreamerSettings(username);
+            }
+            streamers.push(streamer);
+        });
+        
+        return streamers;
+    }
+
+    function gatherFormData() {
+        const priorityItems = document.querySelectorAll('.priority-item');
+        const priority = Array.from(priorityItems).map(item => item.dataset.priority);
+
+        return {
+            streamers: gatherStreamers(),
+            defaultSettings: gatherStreamerSettings('default'),
+            priority: priority,
+            rateLimits: {
+                websocketPingInterval: parseInt(document.getElementById('websocketPingInterval').value),
+                campaignSyncInterval: parseInt(document.getElementById('campaignSyncInterval').value),
+                minuteWatchedInterval: parseInt(document.getElementById('minuteWatchedInterval').value),
+                requestDelay: parseFloat(document.getElementById('requestDelay').value),
+                reconnectDelay: parseInt(document.getElementById('reconnectDelay').value),
+                streamCheckInterval: parseInt(document.getElementById('streamCheckInterval').value)
+            },
+            logger: {
+                consoleLevel: document.getElementById('consoleLevel').value,
+                fileLevel: document.getElementById('fileLevel').value,
+                less: document.getElementById('less').checked,
+                colored: document.getElementById('colored').checked
+            },
+            analytics: {
+                refresh: parseInt(document.getElementById('refresh').value),
+                daysAgo: parseInt(document.getElementById('daysAgo').value),
+                enableChatLogs: document.getElementById('enableChatLogs').checked
+            }
+        };
+    }
+
+    function setupPriorityDragAndDrop() {
+        const list = document.getElementById('priority-list');
+        setupDragAndDropForList(list, '.priority-item');
+    }
+
+    function setupStreamerDragAndDrop() {
+        const list = document.getElementById('streamer-list');
+        setupDragAndDropForList(list, '.streamer-item');
+    }
+
+    function setupDragAndDropForList(list, itemSelector) {
+        let draggedItem = null;
+
+        list.querySelectorAll(itemSelector).forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                draggedItem = item;
+                item.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            item.addEventListener('dragend', () => {
+                item.classList.remove('dragging');
+                draggedItem = null;
+            });
+
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (draggedItem && draggedItem !== item) {
+                    const rect = item.getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+                    if (e.clientY < midY) {
+                        list.insertBefore(draggedItem, item);
+                    } else {
+                        list.insertBefore(draggedItem, item.nextSibling);
+                    }
+                }
+            });
+        });
+    }
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    document.getElementById('add-streamer-btn').addEventListener('click', addStreamer);
+    document.getElementById('new-streamer-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addStreamer();
+        }
+    });
+
+    document.getElementById('settings-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const saveBtn = document.getElementById('save-btn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        try {
+            const data = gatherFormData();
+            const response = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(error);
+            }
+
+            showToast('Settings saved successfully!');
+            currentSettings = data;
+        } catch (error) {
+            showToast(error.message || 'Failed to save settings', 'error');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Settings';
+        }
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', async () => {
+        if (!confirm('Reset all settings to defaults? This will NOT remove streamers.')) return;
+
+        try {
+            const response = await fetch('/api/settings/reset', { method: 'POST' });
+            if (!response.ok) throw new Error('Failed to reset');
+            
+            const settings = await response.json();
+            populateForm(settings);
+            showToast('Settings reset to defaults');
+        } catch (error) {
+            showToast('Failed to reset settings', 'error');
+        }
+    });
+
+    loadSettings();
+</script>
+{{end}}

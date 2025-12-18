@@ -69,7 +69,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
+          go build -ldflags="-s -w -X github.com/PatrickWalther/twitch-miner-go/internal/version.Version=${{ github.ref_name }}" \
             -o twitch-miner-go-${{ matrix.suffix }} \
             ./cmd/miner
 

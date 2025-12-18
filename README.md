@@ -38,7 +38,7 @@ cd twitch-miner-go
 make build
 
 # Or build manually
-go build -ldflags "-s -w -X main.version=$(git describe --tags)" -o twitch-miner-go ./cmd/miner
+go build -ldflags "-s -w -X github.com/PatrickWalther/twitch-miner-go/internal/version.Version=$(git describe --tags)" -o twitch-miner-go ./cmd/miner
 
 # Build for all platforms
 make build-all

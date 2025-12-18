@@ -16,6 +16,8 @@ import (
 
 	"github.com/PatrickWalther/twitch-miner-go/internal/config"
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
+	"github.com/PatrickWalther/twitch-miner-go/internal/settings"
+	"github.com/PatrickWalther/twitch-miner-go/internal/version"
 )
 
 //go:embed templates/*.html templates/partials/*.html
@@ -29,10 +31,12 @@ type AnalyticsServer struct {
 	username  string
 	streamers []*models.Streamer
 
-	repo      Repository
-	server    *http.Server
-	templates map[string]*template.Template
-	mu        sync.RWMutex
+	repo             Repository
+	server           *http.Server
+	templates        map[string]*template.Template
+	settingsProvider settings.SettingsProvider
+	onSettingsUpdate settings.SettingsUpdateCallback
+	mu               sync.RWMutex
 }
 
 func NewAnalyticsServer(settings config.AnalyticsSettings, username string, streamers []*models.Streamer) *AnalyticsServer {
@@ -46,7 +50,7 @@ func NewAnalyticsServer(settings config.AnalyticsSettings, username string, stre
 
 	templates := make(map[string]*template.Template)
 
-	pages := []string{"dashboard.html", "streamer.html"}
+	pages := []string{"dashboard.html", "streamer.html", "settings.html"}
 	for _, page := range pages {
 		tmpl, err := template.ParseFS(templatesFS,
 			"templates/base.html",
@@ -79,13 +83,24 @@ func NewAnalyticsServer(settings config.AnalyticsSettings, username string, stre
 	}
 }
 
+func (s *AnalyticsServer) SetSettingsProvider(provider settings.SettingsProvider) {
+	s.settingsProvider = provider
+}
+
+func (s *AnalyticsServer) SetSettingsUpdateCallback(callback settings.SettingsUpdateCallback) {
+	s.onSettingsUpdate = callback
+}
+
 func (s *AnalyticsServer) Start() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", s.handleDashboard)
+	mux.HandleFunc("/settings", s.handleSettingsPage)
 	mux.HandleFunc("/streamer/", s.handleStreamerPage)
 	mux.HandleFunc("/api/streamers", s.handleAPIStreamers)
 	mux.HandleFunc("/api/status", s.handleAPIStatus)
+	mux.HandleFunc("/api/settings", s.handleAPISettings)
+	mux.HandleFunc("/api/settings/reset", s.handleAPISettingsReset)
 
 	mux.HandleFunc("/streamers", s.handleStreamers)
 	mux.HandleFunc("/json/", s.handleJSON)
@@ -154,9 +169,14 @@ func (s *AnalyticsServer) handleDashboard(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	s.mu.RLock()
+	refresh := s.refresh
+	s.mu.RUnlock()
+
 	data := DashboardData{
 		Username:       s.username,
-		RefreshMinutes: s.refresh,
+		RefreshMinutes: refresh,
+		Version:        version.Version,
 		TotalPoints:    formatNumber(totalPoints),
 		StreamerCount:  len(streamers),
 		PointsToday:    formatNumber(pointsToday),
@@ -183,7 +203,12 @@ func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Requ
 		currentPoints = data.Series[len(data.Series)-1].Y
 	}
 
-	startTS := time.Now().AddDate(0, 0, -s.daysAgo).UnixMilli()
+	s.mu.RLock()
+	refresh := s.refresh
+	daysAgo := s.daysAgo
+	s.mu.RUnlock()
+
+	startTS := time.Now().AddDate(0, 0, -daysAgo).UnixMilli()
 	pointsGained := 0
 	for i, p := range data.Series {
 		if p.X >= startTS {
@@ -198,7 +223,8 @@ func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Requ
 
 	pageData := StreamerPageData{
 		Username:       s.username,
-		RefreshMinutes: s.refresh,
+		RefreshMinutes: refresh,
+		Version:        version.Version,
 		Streamer: StreamerInfo{
 			Name:            name,
 			Points:          currentPoints,
@@ -206,7 +232,7 @@ func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Requ
 		},
 		PointsGained: formatNumber(pointsGained),
 		DataPoints:   len(data.Series),
-		DaysAgo:      s.daysAgo,
+		DaysAgo:      daysAgo,
 	}
 
 	s.renderPage(w, "streamer.html", pageData)
@@ -277,6 +303,81 @@ func (s *AnalyticsServer) handleAPIStreamers(w http.ResponseWriter, r *http.Requ
 func (s *AnalyticsServer) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	_, _ = w.Write([]byte("Connected"))
+}
+
+func (s *AnalyticsServer) handleSettingsPage(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	refresh := s.refresh
+	s.mu.RUnlock()
+
+	data := SettingsPageData{
+		Username:       s.username,
+		RefreshMinutes: refresh,
+		Version:        version.Version,
+	}
+	s.renderPage(w, "settings.html", data)
+}
+
+func (s *AnalyticsServer) handleAPISettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		if s.settingsProvider == nil {
+			http.Error(w, "Settings not available", http.StatusServiceUnavailable)
+			return
+		}
+		settings := s.settingsProvider.GetRuntimeSettings()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(settings)
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		var newSettings settings.RuntimeSettings
+		if err := json.NewDecoder(r.Body).Decode(&newSettings); err != nil {
+			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if s.onSettingsUpdate != nil {
+			s.onSettingsUpdate(newSettings)
+		}
+
+		s.mu.Lock()
+		s.refresh = newSettings.Analytics.Refresh
+		s.daysAgo = newSettings.Analytics.DaysAgo
+		s.mu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		return
+	}
+
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+}
+
+func (s *AnalyticsServer) handleAPISettingsReset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if s.settingsProvider == nil {
+		http.Error(w, "Settings not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	defaults := s.settingsProvider.GetDefaultSettings()
+
+	if s.onSettingsUpdate != nil {
+		s.onSettingsUpdate(defaults)
+	}
+
+	s.mu.Lock()
+	s.refresh = defaults.Analytics.Refresh
+	s.daysAgo = defaults.Analytics.DaysAgo
+	s.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(defaults)
 }
 
 func (s *AnalyticsServer) renderPage(w http.ResponseWriter, page string, data interface{}) {

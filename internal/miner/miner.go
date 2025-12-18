@@ -20,14 +20,16 @@ import (
 	"github.com/PatrickWalther/twitch-miner-go/internal/drops"
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
 	"github.com/PatrickWalther/twitch-miner-go/internal/pubsub"
+	"github.com/PatrickWalther/twitch-miner-go/internal/settings"
 	"github.com/PatrickWalther/twitch-miner-go/internal/watcher"
 )
 
 type Miner struct {
-	config    *config.Config
-	auth      *auth.TwitchAuth
-	client    *api.TwitchClient
-	streamers []*models.Streamer
+	config     *config.Config
+	configPath string
+	auth       *auth.TwitchAuth
+	client     *api.TwitchClient
+	streamers  []*models.Streamer
 
 	wsPool       *pubsub.WebSocketPool
 	chatManager  *chat.ChatManager
@@ -42,13 +44,14 @@ type Miner struct {
 	mu sync.RWMutex
 }
 
-func New(cfg *config.Config) *Miner {
+func New(cfg *config.Config, configPath string) *Miner {
 	deviceID := generateDeviceID()
 
 	return &Miner{
-		config:   cfg,
-		deviceID: deviceID,
-		stopChan: make(chan struct{}),
+		config:     cfg,
+		configPath: configPath,
+		deviceID:   deviceID,
+		stopChan:   make(chan struct{}),
 	}
 }
 
@@ -170,6 +173,10 @@ func (m *Miner) setupComponents() {
 			m.config.Username,
 			m.streamers,
 		)
+		if m.analytics != nil {
+			m.analytics.SetSettingsProvider(m)
+			m.analytics.SetSettingsUpdateCallback(m.ApplySettings)
+		}
 	}
 
 	var chatLogger chat.ChatLogger
@@ -377,4 +384,60 @@ func generateDeviceID() string {
 		return "00000000000000000000000000000000"
 	}
 	return hex.EncodeToString(b)
+}
+
+// GetRuntimeSettings returns a snapshot of the current runtime configuration.
+// It implements settings.SettingsProvider and is safe for concurrent use.
+func (m *Miner) GetRuntimeSettings() settings.RuntimeSettings {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return settings.BuildRuntimeSettings(m.config)
+}
+
+// GetDefaultSettings returns factory default settings with the current streamer list preserved.
+// It implements settings.SettingsProvider and is used for the "Reset to Defaults" feature.
+func (m *Miner) GetDefaultSettings() settings.RuntimeSettings {
+	m.mu.RLock()
+	currentStreamers := m.config.Streamers
+	m.mu.RUnlock()
+	return settings.BuildDefaultSettings(currentStreamers)
+}
+
+// ApplySettings updates the in-memory config, propagates changes to watchers
+// and streamers, and persists them to the config file. It is called by the
+// analytics server in response to UI changes and is safe to call while mining
+// is running. Note: Adding/removing streamers requires a restart to take effect
+// on the active streaming connections.
+func (m *Miner) ApplySettings(s settings.RuntimeSettings) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	settings.ApplyToConfig(m.config, s)
+
+	if m.watcher != nil {
+		m.watcher.UpdateSettings(m.config.Priority, m.config.RateLimits)
+	}
+
+	for _, streamer := range m.streamers {
+		for _, sc := range m.config.Streamers {
+			if streamer.Username == sc.Username {
+				if sc.Settings != nil {
+					streamer.SetSettings(*sc.Settings)
+				} else {
+					streamer.SetSettings(m.config.StreamerSettings)
+				}
+				break
+			}
+		}
+	}
+
+	if m.configPath != "" {
+		if err := config.SaveConfig(m.configPath, m.config); err != nil {
+			slog.Error("Failed to save config", "error", err)
+		} else {
+			slog.Info("Settings saved to config file")
+		}
+	}
+
+	slog.Info("Runtime settings updated")
 }

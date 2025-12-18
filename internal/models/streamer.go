@@ -233,3 +233,15 @@ func (s *Streamer) SetChannelPoints(points int) {
 	defer s.mu.Unlock()
 	s.ChannelPoints = points
 }
+
+func (s *Streamer) GetSettings() StreamerSettings {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.Settings
+}
+
+func (s *Streamer) SetSettings(settings StreamerSettings) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Settings = settings
+}

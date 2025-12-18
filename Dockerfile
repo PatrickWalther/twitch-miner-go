@@ -18,7 +18,7 @@ ARG VERSION=dev
 
 # Build static binary
 RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-s -w -X main.version=${VERSION}" \
+    -ldflags="-s -w -X github.com/PatrickWalther/twitch-miner-go/internal/version.Version=${VERSION}" \
     -o twitch-miner-go \
     ./cmd/miner
 

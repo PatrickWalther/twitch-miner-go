@@ -36,6 +36,7 @@ type StreamerInfo struct {
 type DashboardData struct {
 	Username       string
 	RefreshMinutes int
+	Version        string
 	TotalPoints    string
 	StreamerCount  int
 	PointsToday    string
@@ -44,6 +45,7 @@ type DashboardData struct {
 type StreamerPageData struct {
 	Username       string
 	RefreshMinutes int
+	Version        string
 	Streamer       StreamerInfo
 	PointsGained   string
 	DataPoints     int
@@ -71,4 +73,11 @@ type ChatLogData struct {
 	Messages   []ChatMessage `json:"messages"`
 	TotalCount int           `json:"total_count"`
 	HasMore    bool          `json:"has_more"`
+}
+
+// SettingsPageData contains template data for the settings page.
+type SettingsPageData struct {
+	Username       string
+	RefreshMinutes int
+	Version        string
 }

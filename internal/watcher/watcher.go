@@ -68,6 +68,13 @@ func (w *MinuteWatcher) IsRunning() bool {
 	return w.running
 }
 
+func (w *MinuteWatcher) UpdateSettings(priorities []config.Priority, settings config.RateLimitSettings) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.priorities = priorities
+	w.settings = settings
+}
+
 func (w *MinuteWatcher) loop() {
 	interval := time.Duration(w.settings.MinuteWatchedInterval) * time.Second
 
