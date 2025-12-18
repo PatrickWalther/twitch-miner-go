@@ -36,6 +36,8 @@ type AnalyticsServer struct {
 	templates        map[string]*template.Template
 	settingsProvider settings.SettingsProvider
 	onSettingsUpdate settings.SettingsUpdateCallback
+	status           *StatusBroadcaster
+	ready            bool
 	mu               sync.RWMutex
 }
 
@@ -80,7 +82,66 @@ func NewAnalyticsServer(settings config.AnalyticsSettings, username string, stre
 		streamers: streamers,
 		repo:      repo,
 		templates: templates,
+		status:    NewStatusBroadcaster(),
+		ready:     streamers != nil && len(streamers) > 0,
 	}
+}
+
+func NewAnalyticsServerEarly(analyticsSettings config.AnalyticsSettings, username string) *AnalyticsServer {
+	basePath := filepath.Join("analytics", username)
+
+	repo, err := NewSQLiteRepository(basePath)
+	if err != nil {
+		slog.Error("Failed to create analytics repository", "error", err)
+		return nil
+	}
+
+	templates := make(map[string]*template.Template)
+
+	pages := []string{"dashboard.html", "streamer.html", "settings.html"}
+	for _, page := range pages {
+		tmpl, err := template.ParseFS(templatesFS,
+			"templates/base.html",
+			"templates/"+page,
+			"templates/partials/*.html",
+		)
+		if err != nil {
+			slog.Error("Failed to parse template", "page", page, "error", err)
+			continue
+		}
+		templates[page] = tmpl
+	}
+
+	partials, err := template.ParseFS(templatesFS, "templates/partials/*.html")
+	if err != nil {
+		slog.Error("Failed to parse partials", "error", err)
+	} else {
+		templates["partials"] = partials
+	}
+
+	return &AnalyticsServer{
+		host:      analyticsSettings.Host,
+		port:      analyticsSettings.Port,
+		refresh:   analyticsSettings.Refresh,
+		daysAgo:   analyticsSettings.DaysAgo,
+		username:  username,
+		streamers: nil,
+		repo:      repo,
+		templates: templates,
+		status:    NewStatusBroadcaster(),
+		ready:     false,
+	}
+}
+
+func (s *AnalyticsServer) AttachStreamers(streamers []*models.Streamer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.streamers = streamers
+	s.ready = true
+}
+
+func (s *AnalyticsServer) GetStatusBroadcaster() *StatusBroadcaster {
+	return s.status
 }
 
 func (s *AnalyticsServer) SetSettingsProvider(provider settings.SettingsProvider) {
@@ -99,6 +160,8 @@ func (s *AnalyticsServer) Start() {
 	mux.HandleFunc("/streamer/", s.handleStreamerPage)
 	mux.HandleFunc("/api/streamers", s.handleAPIStreamers)
 	mux.HandleFunc("/api/status", s.handleAPIStatus)
+	mux.HandleFunc("/api/miner-status", s.handleAPIMinerStatus)
+	mux.HandleFunc("/api/miner-status/stream", s.handleAPIMinerStatusStream)
 	mux.HandleFunc("/api/settings", s.handleAPISettings)
 	mux.HandleFunc("/api/settings/reset", s.handleAPISettingsReset)
 
@@ -303,6 +366,43 @@ func (s *AnalyticsServer) handleAPIStreamers(w http.ResponseWriter, r *http.Requ
 func (s *AnalyticsServer) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	_, _ = w.Write([]byte("Connected"))
+}
+
+func (s *AnalyticsServer) handleAPIMinerStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	status := s.status.GetStatus()
+	_ = json.NewEncoder(w).Encode(status)
+}
+
+func (s *AnalyticsServer) handleAPIMinerStatusStream(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "SSE not supported", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	ch := s.status.Subscribe()
+	defer s.status.Unsubscribe(ch)
+
+	ctx := r.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case status, ok := <-ch:
+			if !ok {
+				return
+			}
+			data, _ := json.Marshal(status)
+			fmt.Fprintf(w, "data: %s\n\n", data)
+			flusher.Flush()
+		}
+	}
 }
 
 func (s *AnalyticsServer) handleSettingsPage(w http.ResponseWriter, r *http.Request) {

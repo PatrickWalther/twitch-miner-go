@@ -37,9 +37,10 @@ type Miner struct {
 	dropsTracker *drops.DropsTracker
 	analytics    *analytics.AnalyticsServer
 
-	deviceID string
-	running  bool
-	stopChan chan struct{}
+	deviceID         string
+	running          bool
+	stopChan         chan struct{}
+	externalAnalytics bool
 
 	mu sync.RWMutex
 }
@@ -53,6 +54,11 @@ func New(cfg *config.Config, configPath string) *Miner {
 		deviceID:   deviceID,
 		stopChan:   make(chan struct{}),
 	}
+}
+
+func (m *Miner) SetAnalyticsServer(server *analytics.AnalyticsServer) {
+	m.analytics = server
+	m.externalAnalytics = true
 }
 
 func (m *Miner) Run() error {
@@ -105,6 +111,22 @@ func (m *Miner) authenticate() error {
 
 	m.auth = auth.NewTwitchAuth(m.config.Username, m.deviceID)
 
+	if m.analytics != nil {
+		broadcaster := m.analytics.GetStatusBroadcaster()
+		m.auth.SetEventCallback(func(event auth.AuthEvent) {
+			switch event.Type {
+			case auth.AuthEventCode:
+				broadcaster.SetAuthRequired(event.VerificationURI, event.UserCode, event.ExpiresIn)
+			case auth.AuthEventCompleted:
+				broadcaster.SetStatus(analytics.StatusLoadingStreamers, "Loading streamers...")
+			case auth.AuthEventError:
+				if event.Error != nil {
+					broadcaster.SetStatus(analytics.StatusError, event.Error.Error())
+				}
+			}
+		})
+	}
+
 	if err := m.auth.Login(); err != nil {
 		return err
 	}
@@ -129,7 +151,18 @@ func (m *Miner) authenticate() error {
 func (m *Miner) loadStreamers() error {
 	slog.Info("Loading streamers", "count", len(m.config.Streamers))
 
-	for _, sc := range m.config.Streamers {
+	var broadcaster *analytics.StatusBroadcaster
+	if m.analytics != nil {
+		broadcaster = m.analytics.GetStatusBroadcaster()
+		broadcaster.SetStatus(analytics.StatusLoadingStreamers, "Loading streamers...")
+	}
+
+	total := len(m.config.Streamers)
+	for i, sc := range m.config.Streamers {
+		if broadcaster != nil {
+			broadcaster.SetStreamerProgress(i+1, total, sc.Username)
+		}
+
 		settings := m.config.StreamerSettings
 		if sc.Settings != nil {
 			settings = *sc.Settings
@@ -168,14 +201,20 @@ func (m *Miner) setupComponents() {
 	m.wsPool.SetMessageHandler(m.handlePubSubMessage)
 
 	if m.config.EnableAnalytics {
-		m.analytics = analytics.NewAnalyticsServer(
-			m.config.Analytics,
-			m.config.Username,
-			m.streamers,
-		)
-		if m.analytics != nil {
+		if m.externalAnalytics && m.analytics != nil {
+			m.analytics.AttachStreamers(m.streamers)
 			m.analytics.SetSettingsProvider(m)
 			m.analytics.SetSettingsUpdateCallback(m.ApplySettings)
+		} else {
+			m.analytics = analytics.NewAnalyticsServer(
+				m.config.Analytics,
+				m.config.Username,
+				m.streamers,
+			)
+			if m.analytics != nil {
+				m.analytics.SetSettingsProvider(m)
+				m.analytics.SetSettingsUpdateCallback(m.ApplySettings)
+			}
 		}
 	}
 
@@ -258,7 +297,10 @@ func (m *Miner) startMining() {
 	m.dropsTracker.Start()
 
 	if m.analytics != nil {
-		m.analytics.Start()
+		if !m.externalAnalytics {
+			m.analytics.Start()
+		}
+		m.analytics.GetStatusBroadcaster().SetStatus(analytics.StatusRunning, "Mining active")
 	}
 
 	go m.streamCheckLoop()

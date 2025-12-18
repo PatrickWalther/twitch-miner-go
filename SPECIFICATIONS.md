@@ -140,7 +140,7 @@ The main controller coordinates all mining operations.
 | `username` | string | Required | Twitch username |
 | `password` | string | null | Twitch password (prompts if not provided) |
 | `claimDropsOnStartup` | boolean | false | Claim all drops from inventory on startup |
-| `enableAnalytics` | boolean | false | Enable analytics web server |
+| `enableAnalytics` | boolean | true | Enable analytics web server |
 | `priority` | array | [STREAK, DROPS, ORDER] | Streamer watching priority |
 | `streamerSettings` | object | Default | Default settings for streamers |
 

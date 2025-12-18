@@ -65,7 +65,7 @@ type AnalyticsSettings struct {
 func DefaultConfig() Config {
 	return Config{
 		ClaimDropsOnStartup: false,
-		EnableAnalytics:     false,
+		EnableAnalytics:     true,
 		Priority:            []Priority{PriorityStreak, PriorityDrops, PriorityOrder},
 		StreamerSettings:    models.DefaultStreamerSettings(),
 		RateLimits:          DefaultRateLimitSettings(),

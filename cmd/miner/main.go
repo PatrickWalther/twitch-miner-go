@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/PatrickWalther/twitch-miner-go/internal/analytics"
 	"github.com/PatrickWalther/twitch-miner-go/internal/config"
 	"github.com/PatrickWalther/twitch-miner-go/internal/logger"
 	"github.com/PatrickWalther/twitch-miner-go/internal/miner"
@@ -63,7 +64,23 @@ func main() {
 
 	slog.Info("Twitch Channel Points Miner", "version", version.Version)
 
+	var analyticsServer *analytics.AnalyticsServer
+	if cfg.EnableAnalytics {
+		if err := os.MkdirAll("analytics", 0755); err != nil {
+			slog.Error("Failed to create analytics directory", "error", err)
+			os.Exit(1)
+		}
+		analyticsServer = analytics.NewAnalyticsServerEarly(cfg.Analytics, cfg.Username)
+		if analyticsServer != nil {
+			analyticsServer.Start()
+			defer analyticsServer.Stop()
+		}
+	}
+
 	m := miner.New(cfg, *configFile)
+	if analyticsServer != nil {
+		m.SetAnalyticsServer(analyticsServer)
+	}
 	if err := m.Run(); err != nil {
 		slog.Error("Miner error", "error", err)
 		os.Exit(1)

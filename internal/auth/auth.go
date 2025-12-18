@@ -42,13 +42,33 @@ type StoredAuth struct {
 	Username  string `json:"username"`
 }
 
+type AuthEventCallback func(event AuthEvent)
+
+type AuthEventType string
+
+const (
+	AuthEventStarted   AuthEventType = "started"
+	AuthEventCode      AuthEventType = "code"
+	AuthEventCompleted AuthEventType = "completed"
+	AuthEventError     AuthEventType = "error"
+)
+
+type AuthEvent struct {
+	Type            AuthEventType
+	VerificationURI string
+	UserCode        string
+	ExpiresIn       int
+	Error           error
+}
+
 type TwitchAuth struct {
-	clientID  string
-	deviceID  string
-	username  string
-	token     string
-	userID    string
-	client    *http.Client
+	clientID      string
+	deviceID      string
+	username      string
+	token         string
+	userID        string
+	client        *http.Client
+	eventCallback AuthEventCallback
 }
 
 func NewTwitchAuth(username, deviceID string) *TwitchAuth {
@@ -78,6 +98,16 @@ func (a *TwitchAuth) SetToken(token string) {
 
 func (a *TwitchAuth) SetUserID(userID string) {
 	a.userID = userID
+}
+
+func (a *TwitchAuth) SetEventCallback(callback AuthEventCallback) {
+	a.eventCallback = callback
+}
+
+func (a *TwitchAuth) emitEvent(event AuthEvent) {
+	if a.eventCallback != nil {
+		a.eventCallback(event)
+	}
 }
 
 func (a *TwitchAuth) cookiesPath() string {
@@ -140,8 +170,11 @@ func (a *TwitchAuth) Login() error {
 }
 
 func (a *TwitchAuth) DeviceFlowLogin() error {
+	a.emitEvent(AuthEvent{Type: AuthEventStarted})
+
 	deviceCode, err := a.requestDeviceCode()
 	if err != nil {
+		a.emitEvent(AuthEvent{Type: AuthEventError, Error: err})
 		return fmt.Errorf("failed to get device code: %w", err)
 	}
 
@@ -151,17 +184,27 @@ func (a *TwitchAuth) DeviceFlowLogin() error {
 	fmt.Printf("Code expires in %d minutes\n", deviceCode.ExpiresIn/60)
 	fmt.Println("Waiting for authorization...")
 
+	a.emitEvent(AuthEvent{
+		Type:            AuthEventCode,
+		VerificationURI: deviceCode.VerificationURI,
+		UserCode:        deviceCode.UserCode,
+		ExpiresIn:       deviceCode.ExpiresIn,
+	})
+
 	token, err := a.pollForToken(deviceCode)
 	if err != nil {
+		a.emitEvent(AuthEvent{Type: AuthEventError, Error: err})
 		return fmt.Errorf("failed to get token: %w", err)
 	}
 
 	a.token = token.AccessToken
 
 	if err := a.SaveAuth(); err != nil {
+		a.emitEvent(AuthEvent{Type: AuthEventError, Error: err})
 		return fmt.Errorf("failed to save auth: %w", err)
 	}
 
+	a.emitEvent(AuthEvent{Type: AuthEventCompleted})
 	return nil
 }
 
