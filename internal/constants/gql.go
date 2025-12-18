@@ -40,12 +40,12 @@ var (
 
 	PlaybackAccessToken = NewGQLOperation(
 		"PlaybackAccessToken",
-		"ed230aa1e33e07eebb8928504583da78a5173989fadfb1ac94be06a04f3cdbe9",
+		"3093517e37e4f4cb48906155bcd894150aef92617939236d2508f3375ab732ce",
 	)
 
 	VideoPlayerStreamInfoOverlayChannel = NewGQLOperation(
 		"VideoPlayerStreamInfoOverlayChannel",
-		"198492e0857f6aedead9665c81c5a06d67b25b58034649687124083ff288597d",
+		"a5f2e34d626a9f4f5c0204f910bab2194948a9502089be558bb6e779a9e1b3d2",
 	)
 
 	ClaimCommunityPoints = NewGQLOperation(
@@ -65,7 +65,7 @@ var (
 
 	ChannelPointsContext = NewGQLOperation(
 		"ChannelPointsContext",
-		"374314de591e69925fce3ddc2bcf085796f56ebb8cad67a0daa3165c03adc345",
+		"1530a003a7d374b0380b79db0be0534f30ff46e61cffa2bc0e2468a909fbc024",
 	)
 
 	JoinRaid = NewGQLOperation(
@@ -90,7 +90,7 @@ var (
 
 	DropCampaignDetails = NewGQLOperation(
 		"DropCampaignDetails",
-		"039277bf98f3130929262cc7c6efd9c141ca3749cb6dca442fc8ead9a53f77c1",
+		"f6396f5ffdde867a8f6f6da18286e4baf02e5b98d14689a69b5af320a4c7b7b8",
 	)
 
 	DropsHighlightServiceAvailableDrops = NewGQLOperation(
