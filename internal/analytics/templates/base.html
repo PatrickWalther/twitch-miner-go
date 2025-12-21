@@ -1,626 +1,80 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{block "title" .}}Twitch Points Miner{{end}}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <style>
-        :root {
-            --pico-primary: #9146ff;
-            --pico-primary-hover: #772ce8;
-            --twitch-purple: #9146ff;
-            --twitch-purple-dark: #772ce8;
-        }
-        
-        body {
-            background: #0e0e10;
-        }
-        
-        nav {
-            background: #18181b;
-            border-bottom: 1px solid #303033;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            padding: 0.75rem 1.5rem !important;
-            min-height: 56px;
-        }
-        
-        nav ul {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-        
-        nav ul li {
-            padding: 0 0.75rem;
-        }
-        
-        .brand {
-            color: var(--twitch-purple) !important;
-            font-weight: bold;
-            font-size: 1.25rem;
-        }
-        
-        .streamer-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1.5rem;
-        }
-        
-        .streamer-grid article {
-            cursor: pointer;
-            transition: border-color 0.2s, transform 0.2s;
-        }
-        
-        .streamer-grid article:hover {
-            border-color: var(--twitch-purple);
-            transform: translateY(-2px);
-        }
-        
-        .streamer-grid article h3 {
-            margin: 0 0 0.5rem 0;
-            color: var(--twitch-purple);
-        }
-        
-        .streamer-grid article .points {
-            font-size: 2rem;
-            font-weight: bold;
-        }
-        
-        .streamer-grid article .points-label {
-            font-size: 0.875rem;
-        }
-        
-        .streamer-grid article .last-activity {
-            font-size: 0.75rem;
-            margin-top: 0.5rem;
-        }
-        
-        .streamer-grid article.is-live {
-            border-color: #eb0400;
-            box-shadow: 0 0 10px rgba(235, 4, 0, 0.3);
-            position: relative;
-        }
-        
-        .stream-link {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-            color: #adadb8;
-            width: 1.25rem;
-            height: 1.25rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: color 0.2s;
-            z-index: 1;
-        }
-        
-        .stream-link:hover {
-            color: var(--twitch-purple);
-        }
-        
-        .stream-link svg {
-            width: 100%;
-            height: 100%;
-            stroke: currentColor;
-            stroke-width: 2;
-            fill: none;
-        }
-        
-        .streamer-grid article .card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-            padding-right: 1.75rem;
-        }
-        
-        .live-badge {
-            background: #eb0400;
-            color: white;
-            font-size: 0.65rem;
-            font-weight: bold;
-            padding: 0.15rem 0.4rem;
-            border-radius: 0.25rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .stream-status {
-            font-size: 0.8rem;
-            margin-top: 0.5rem;
-        }
-        
-        .status-live {
-            color: #eb0400;
-        }
-        
-        .status-offline {
-            color: #adadb8;
-        }
-        
-        .section {
-            margin-bottom: 2rem;
-        }
-        
-        .section-title {
-            color: #efeff1;
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #303033;
-        }
-        
-        .subsection-title {
-            color: #adadb8;
-            font-size: 1rem;
-            margin: 1rem 0 0.75rem 0;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .stat-value {
-            color: var(--twitch-purple);
-            margin-bottom: 0;
-        }
-        
-        .grid article {
-            text-align: center;
-        }
-        
-        .chart-container {
-            background: #18181b;
-            border: 1px solid #303033;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            margin-top: 1.5rem;
-        }
-        
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #adadb8;
-            text-decoration: none;
-            margin-bottom: 1rem;
-        }
-        
-        .back-link:hover {
-            color: var(--twitch-purple);
-        }
-        
-        .htmx-request .htmx-indicator {
-            display: inline-block;
-        }
-        
-        .htmx-indicator {
-            display: none;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .loading {
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-        
-        .nav-link {
-            color: #adadb8 !important;
-            text-decoration: none;
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.25rem;
-            transition: color 0.2s, background-color 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid #303033;
-        }
-        
-        .nav-link:hover {
-            color: var(--twitch-purple) !important;
-            background-color: rgba(145, 70, 255, 0.15);
-            border-color: var(--twitch-purple);
-        }
-        
-        .nav-link svg {
-            width: 1rem;
-            height: 1rem;
-            stroke: currentColor;
-            stroke-width: 2;
-            fill: none;
-            flex-shrink: 0;
-        }
-        
-        .nav-user {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #adadb8;
-            font-size: 0.875rem;
-        }
-        
-        .nav-user svg {
-            width: 1rem;
-            height: 1rem;
-            stroke: currentColor;
-            stroke-width: 2;
-            fill: none;
-        }
-        
-        .add-streamer-row {
-            display: flex;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
-        
-        .add-streamer-row input {
-            flex: 1;
-            margin-bottom: 0;
-        }
-        
-        .add-streamer-row button {
-            white-space: nowrap;
-            width: auto;
-            margin-bottom: 0;
-        }
-        
-        .button-row {
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-            margin-top: 1.5rem;
-        }
-        
-        .button-row button {
-            width: auto;
-            margin-bottom: 0;
-        }
-        
-        .setting-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid #303033;
-        }
-        
-        .setting-row:last-child {
-            border-bottom: none;
-        }
-        
-        .setting-label {
-            color: #efeff1;
-            font-weight: 500;
-        }
-        
-        .setting-description {
-            color: #adadb8;
-            font-size: 0.75rem;
-            margin-top: 0.25rem;
-        }
-        
-        .setting-input {
-            width: 150px;
-            min-width: 150px;
-            max-width: 150px;
-            margin-bottom: 0;
-            flex-shrink: 0;
-        }
-        
-        .setting-input[type="number"] {
-            width: 120px;
-            min-width: 120px;
-            max-width: 120px;
-        }
-        
-        select.setting-input {
-            width: auto;
-            min-width: 180px;
-        }
-        
-        .priority-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        
-        .priority-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem;
-            background: #0e0e10;
-            border: 1px solid #303033;
-            border-radius: 0.25rem;
-            margin-bottom: 0.5rem;
-            cursor: grab;
-        }
-        
-        .priority-item:active {
-            cursor: grabbing;
-        }
-        
-        .priority-handle {
-            color: #adadb8;
-            font-size: 1.2rem;
-        }
-        
-        .priority-item.dragging {
-            opacity: 0.5;
-            border-color: var(--twitch-purple);
-        }
-        
-        .toast {
-            position: fixed;
-            bottom: 2rem;
-            right: 2rem;
-            padding: 1rem 1.5rem;
-            border-radius: 0.5rem;
-            color: white;
-            font-weight: 500;
-            z-index: 1000;
-            animation: slideIn 0.3s ease-out;
-        }
-        
-        .toast.success {
-            background: #36b535;
-        }
-        
-        .toast.error {
-            background: #eb0400;
-        }
-        
-        /* Status overlay */
-        .status-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(14, 14, 16, 0.95);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-        
-        .status-overlay.hidden {
-            display: none;
-        }
-        
-        .status-card {
-            background: #18181b;
-            border: 1px solid #303033;
-            border-radius: 0.75rem;
-            padding: 2rem;
-            max-width: 500px;
-            width: 90%;
-            text-align: center;
-        }
-        
-        .status-card h2 {
-            color: var(--twitch-purple);
-            margin-bottom: 1rem;
-        }
-        
-        .status-card .spinner {
-            width: 48px;
-            height: 48px;
-            border: 4px solid #303033;
-            border-top-color: var(--twitch-purple);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 1.5rem auto;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .auth-code {
-            font-family: monospace;
-            font-size: 2rem;
-            font-weight: bold;
-            color: var(--twitch-purple);
-            background: #0e0e10;
-            padding: 1rem 2rem;
-            border-radius: 0.5rem;
-            margin: 1rem 0;
-            letter-spacing: 0.2em;
-            user-select: all;
-        }
-        
-        .auth-link {
-            color: var(--twitch-purple);
-            font-weight: 500;
-        }
-        
-        .status-message {
-            color: #adadb8;
-            margin-top: 0.5rem;
-        }
-        
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        
-        .streamer-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        
-        .streamer-item {
-            background: #0e0e10;
-            border: 1px solid #303033;
-            border-radius: 0.5rem;
-            margin-bottom: 0.5rem;
-            overflow: hidden;
-        }
-        
-        .streamer-item.dragging {
-            opacity: 0.5;
-            border-color: var(--twitch-purple);
-        }
-        
-        .streamer-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem 1rem;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        
-        .streamer-header:hover {
-            background: rgba(145, 70, 255, 0.1);
-        }
-        
-        .streamer-drag-handle {
-            color: #adadb8;
-            cursor: grab;
-            font-size: 1.2rem;
-        }
-        
-        .streamer-item:active .streamer-drag-handle {
-            cursor: grabbing;
-        }
-        
-        .streamer-name {
-            flex: 1;
-            color: #efeff1;
-            font-weight: 500;
-        }
-        
-        .override-badge {
-            background: var(--twitch-purple);
-            color: white;
-            font-size: 0.65rem;
-            padding: 0.15rem 0.5rem;
-            border-radius: 0.25rem;
-            text-transform: uppercase;
-        }
-        
-        .streamer-expand-icon {
-            color: #adadb8;
-            font-size: 0.75rem;
-            transition: transform 0.2s;
-        }
-        
-        .streamer-item.expanded .streamer-expand-icon {
-            transform: rotate(180deg);
-        }
-        
-        .streamer-remove-btn {
-            background: none;
-            border: none;
-            color: #adadb8;
-            cursor: pointer;
-            font-size: 1rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            transition: color 0.2s, background-color 0.2s;
-        }
-        
-        .streamer-remove-btn:hover {
-            color: #eb0400;
-            background: rgba(235, 4, 0, 0.1);
-        }
-        
-        .streamer-settings-panel {
-            display: none;
-            border-top: 1px solid #303033;
-            background: #18181b;
-        }
-        
-        .streamer-item.expanded .streamer-settings-panel {
-            display: block;
-        }
-        
-        .streamer-settings-header {
-            padding: 1rem;
-            border-bottom: 1px solid #303033;
-        }
-        
-
-        
-        .streamer-settings-content {
-            padding: 0.5rem 1rem 1rem 1rem;
-        }
-        
-        .streamer-settings-content .setting-row {
-            padding: 0.5rem 0;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/app.css">
+    <script src="/static/js/htmx.min.js" defer></script>
+    <script src="/static/js/apexcharts.min.js" defer></script>
 </head>
-<body>
-    <div id="status-overlay" class="status-overlay hidden">
-        <div class="status-card">
-            <h2 id="status-title">Initializing...</h2>
-            <div class="spinner" id="status-spinner"></div>
+<body class="min-h-screen bg-twitch-bg text-twitch-text">
+    <div id="status-overlay" class="status-overlay hidden fixed inset-0 bg-twitch-bg/95 flex items-center justify-center z-[1000]">
+        <div class="bg-twitch-card border border-twitch-border rounded-xl p-8 max-w-md w-[90%] text-center">
+            <h2 id="status-title" class="text-twitch text-xl font-semibold mb-4">Initializing...</h2>
+            <div class="w-12 h-12 border-4 border-twitch-border border-t-twitch rounded-full animate-spin mx-auto my-6" id="status-spinner"></div>
             <div id="status-content"></div>
-            <p class="status-message" id="status-message"></p>
+            <p class="text-twitch-muted mt-2 text-sm" id="status-message"></p>
         </div>
     </div>
 
-    <nav>
-        <ul>
-            <li><a href="/" class="brand">⚡ Twitch Points Miner</a></li>
-        </ul>
-        <ul>
-            <li><a href="/" class="nav-link">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                Dashboard
-            </a></li>
-            {{if .DiscordEnabled}}<li><a href="/notifications" class="nav-link">
-                <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                Notifications
-            </a></li>{{end}}
-            <li><a href="/settings" class="nav-link">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                Settings
-            </a></li>
-        </ul>
-        <ul>
-            <li><span class="nav-user">
-                <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <nav class="bg-twitch-card border-b border-twitch-border sticky top-0 z-[100] px-6 py-3 min-h-[56px]">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <a href="/" class="text-twitch font-bold text-xl hover:text-twitch-dark">⚡ Twitch Points Miner</a>
+            <div class="flex items-center gap-4">
+                <a href="/" class="nav-link">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1"/>
+                    </svg>
+                    Dashboard
+                </a>
+                {{if .DiscordEnabled}}
+                <a href="/notifications" class="nav-link">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                    Notifications
+                </a>
+                {{end}}
+                <a href="/settings" class="nav-link">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                    Settings
+                </a>
+            </div>
+            <div class="flex items-center gap-2 text-twitch-muted text-sm">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
                 {{.Username}}
-            </span></li>
-        </ul>
+            </div>
+        </div>
     </nav>
     
-    <main class="container" style="max-width: 1200px;">
+    <main class="max-w-6xl mx-auto px-4 py-8">
         {{block "content" .}}{{end}}
     </main>
     
-    <footer class="container" style="max-width: 1200px; display: flex; justify-content: space-between; align-items: center;">
-        <small style="color: #adadb8;">
+    <footer class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+        <small class="text-twitch-muted">
             Auto-refresh: {{.RefreshMinutes}} min | 
             <span hx-get="/api/status" hx-trigger="every 30s" hx-swap="innerHTML">
                 Connected
             </span>
         </small>
-        <a href="https://github.com/PatrickWalther/twitch-miner-go" target="_blank" rel="noopener" title="View on GitHub" style="color: #adadb8;">
-            <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+        <a href="https://github.com/PatrickWalther/twitch-miner-go" target="_blank" rel="noopener" title="View on GitHub" class="text-twitch-muted hover:text-twitch transition-colors">
+            <svg class="w-6 h-6" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
             </svg>
         </a>
-        {{if .Version}}<small style="color: #adadb8;">{{.Version}}</small>{{end}}
+        {{if .Version}}<small class="text-twitch-muted">{{.Version}}</small>{{end}}
     </footer>
     
     {{block "scripts" .}}{{end}}
@@ -661,10 +115,10 @@
                         spinner.style.display = 'none';
                         if (status.auth) {
                             content.innerHTML = `
-                                <p>Open <a href="${status.auth.verificationUri}" target="_blank" class="auth-link">${status.auth.verificationUri}</a></p>
-                                <p>Enter this code:</p>
-                                <div class="auth-code">${status.auth.userCode}</div>
-                                <p style="color: #adadb8; font-size: 0.875rem;">Code expires in ${Math.floor(status.auth.expiresIn / 60)} minutes</p>
+                                <p class="text-twitch-muted">Open <a href="${status.auth.verificationUri}" target="_blank" class="text-twitch font-medium">${status.auth.verificationUri}</a></p>
+                                <p class="text-twitch-muted mt-2">Enter this code:</p>
+                                <div class="font-mono text-3xl font-bold text-twitch bg-twitch-bg px-6 py-4 rounded-lg my-4 tracking-widest select-all">${status.auth.userCode}</div>
+                                <p class="text-twitch-muted text-sm">Code expires in ${Math.floor(status.auth.expiresIn / 60)} minutes</p>
                             `;
                         }
                         message.textContent = 'Waiting for authorization...';
@@ -672,7 +126,7 @@
                         
                     case 'loading_streamers':
                         title.textContent = 'Loading Streamers';
-                        content.innerHTML = status.streamerInfo ? `<p>Loading: <strong>${status.streamerInfo}</strong></p>` : '';
+                        content.innerHTML = status.streamerInfo ? `<p class="text-twitch-muted">Loading: <strong class="text-twitch-text">${status.streamerInfo}</strong></p>` : '';
                         message.textContent = status.message || 'Please wait...';
                         spinner.style.display = 'block';
                         break;
@@ -716,10 +170,8 @@
                 }
             }
             
-            // Connect on page load
             connectSSE();
             
-            // Close SSE connection when navigating away
             window.addEventListener('pagehide', disconnectSSE);
             window.addEventListener('beforeunload', disconnectSSE);
         })();

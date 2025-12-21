@@ -1,20 +1,20 @@
 {{define "title"}}Dashboard - Twitch Points Miner{{end}}
 
 {{define "content"}}
-<h1>Dashboard</h1>
+<h1 class="text-3xl font-bold mb-6">Dashboard</h1>
 
-<section class="grid">
-    <article>
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <article class="stat-card">
         <h2 class="stat-value">{{.TotalPoints}}</h2>
-        <p>Total Points</p>
+        <p class="text-twitch-muted mt-2">Total Points</p>
     </article>
-    <article>
+    <article class="stat-card">
         <h2 class="stat-value">{{.StreamerCount}}</h2>
-        <p>Streamers</p>
+        <p class="text-twitch-muted mt-2">Streamers</p>
     </article>
-    <article>
+    <article class="stat-card">
         <h2 class="stat-value">{{.PointsToday}}</h2>
-        <p>Points Today</p>
+        <p class="text-twitch-muted mt-2">Points Today</p>
     </article>
 </section>
 
@@ -23,7 +23,7 @@
     hx-trigger="load, every {{.RefreshMinutes}}m"
     hx-swap="innerHTML"
 >
-    <div class="loading">Loading streamers...</div>
+    <div class="animate-pulse-loading text-twitch-muted">Loading streamers...</div>
 </section>
 {{end}}
 

@@ -1,243 +1,251 @@
 {{define "title"}}Notifications - Twitch Points Miner{{end}}
 
 {{define "content"}}
-<h1>Notifications</h1>
+<h1 class="text-3xl font-bold mb-6">Notifications</h1>
 
 {{if not .ConfigValid}}
-<article style="border-color: #eb0400; background: rgba(235, 4, 0, 0.1);">
-    <header style="background: none; border: none; padding: 0;">
-        <strong style="color: #eb0400;">⚠️ Configuration Error</strong>
-    </header>
-    <p>{{.ConfigError}}</p>
-    <p><a href="/settings">Go to Settings</a> to configure Discord integration.</p>
+<article class="card border-twitch-live bg-twitch-live/10 mb-6">
+    <div class="flex items-center gap-2 mb-2">
+        <span class="text-twitch-live font-semibold">⚠️ Configuration Error</span>
+    </div>
+    <p class="text-twitch-muted mb-2">{{.ConfigError}}</p>
+    <p><a href="/settings" class="text-twitch hover:underline">Go to Settings</a> to configure Discord integration.</p>
 </article>
 {{end}}
 
-<div id="notifications-app" class="{{if not .ConfigValid}}disabled-overlay{{end}}">
-    <details open>
-        <summary>Discord Channels</summary>
-        <p><small>Select which Discord channel each notification type should be sent to.</small></p>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Mentions Channel</div>
-                <div class="setting-description">Channel for chat mention notifications</div>
+<div id="notifications-app" class="space-y-4 {{if not .ConfigValid}}opacity-50 pointer-events-none{{end}}">
+    <details class="details-panel" open>
+        <summary class="text-lg">Discord Channels</summary>
+        <div class="details-content">
+            <p class="text-twitch-muted text-sm mb-4">Select which Discord channel each notification type should be sent to.</p>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Mentions Channel</div>
+                    <div class="setting-description">Channel for chat mention notifications</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="channel-reload-btn p-2 border border-twitch-border rounded hover:border-twitch hover:text-twitch transition-colors" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                    </button>
+                    <select class="input-field w-64 channel-select" id="mentions-channel" {{if not .ConfigValid}}disabled{{end}}>
+                        <option value="">-- Select Channel --</option>
+                    </select>
+                    <div class="channel-loading w-5 h-5 border-2 border-twitch-border border-t-twitch rounded-full animate-spin hidden"></div>
+                </div>
             </div>
-            <div class="channel-select-wrapper">
-                <button type="button" class="channel-reload-btn" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 4v6h-6M1 20v-6h6"/>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                    </svg>
-                </button>
-                <select class="setting-input channel-select" id="mentions-channel" {{if not .ConfigValid}}disabled{{end}}>
-                    <option value="">-- Select Channel --</option>
-                </select>
-                <div class="channel-loading"></div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Points Channel</div>
+                    <div class="setting-description">Channel for point threshold notifications</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="channel-reload-btn p-2 border border-twitch-border rounded hover:border-twitch hover:text-twitch transition-colors" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                    </button>
+                    <select class="input-field w-64 channel-select" id="points-channel" {{if not .ConfigValid}}disabled{{end}}>
+                        <option value="">-- Select Channel --</option>
+                    </select>
+                    <div class="channel-loading w-5 h-5 border-2 border-twitch-border border-t-twitch rounded-full animate-spin hidden"></div>
+                </div>
             </div>
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Points Channel</div>
-                <div class="setting-description">Channel for point threshold notifications</div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Online Channel</div>
+                    <div class="setting-description">Channel for streamer online notifications</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="channel-reload-btn p-2 border border-twitch-border rounded hover:border-twitch hover:text-twitch transition-colors" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                    </button>
+                    <select class="input-field w-64 channel-select" id="online-channel" {{if not .ConfigValid}}disabled{{end}}>
+                        <option value="">-- Select Channel --</option>
+                    </select>
+                    <div class="channel-loading w-5 h-5 border-2 border-twitch-border border-t-twitch rounded-full animate-spin hidden"></div>
+                </div>
             </div>
-            <div class="channel-select-wrapper">
-                <button type="button" class="channel-reload-btn" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 4v6h-6M1 20v-6h6"/>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                    </svg>
-                </button>
-                <select class="setting-input channel-select" id="points-channel" {{if not .ConfigValid}}disabled{{end}}>
-                    <option value="">-- Select Channel --</option>
-                </select>
-                <div class="channel-loading"></div>
-            </div>
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Online Channel</div>
-                <div class="setting-description">Channel for streamer online notifications</div>
-            </div>
-            <div class="channel-select-wrapper">
-                <button type="button" class="channel-reload-btn" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 4v6h-6M1 20v-6h6"/>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                    </svg>
-                </button>
-                <select class="setting-input channel-select" id="online-channel" {{if not .ConfigValid}}disabled{{end}}>
-                    <option value="">-- Select Channel --</option>
-                </select>
-                <div class="channel-loading"></div>
-            </div>
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Offline Channel</div>
-                <div class="setting-description">Channel for streamer offline notifications</div>
-            </div>
-            <div class="channel-select-wrapper">
-                <button type="button" class="channel-reload-btn" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 4v6h-6M1 20v-6h6"/>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                    </svg>
-                </button>
-                <select class="setting-input channel-select" id="offline-channel" {{if not .ConfigValid}}disabled{{end}}>
-                    <option value="">-- Select Channel --</option>
-                </select>
-                <div class="channel-loading"></div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Offline Channel</div>
+                    <div class="setting-description">Channel for streamer offline notifications</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="channel-reload-btn p-2 border border-twitch-border rounded hover:border-twitch hover:text-twitch transition-colors" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                    </button>
+                    <select class="input-field w-64 channel-select" id="offline-channel" {{if not .ConfigValid}}disabled{{end}}>
+                        <option value="">-- Select Channel --</option>
+                    </select>
+                    <div class="channel-loading w-5 h-5 border-2 border-twitch-border border-t-twitch rounded-full animate-spin hidden"></div>
+                </div>
             </div>
         </div>
     </details>
 
-    <details open>
-        <summary>Chat Mentions</summary>
-        <p><small>Get notified when someone mentions you in chat.</small></p>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Enable Mention Notifications</div>
-                <div class="setting-description">Receive notifications when mentioned in chat</div>
+    <details class="details-panel" open>
+        <summary class="text-lg">Chat Mentions</summary>
+        <div class="details-content">
+            <p class="text-twitch-muted text-sm mb-4">Get notified when someone mentions you in chat.</p>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Enable Mention Notifications</div>
+                    <div class="setting-description">Receive notifications when mentioned in chat</div>
+                </div>
+                <input type="checkbox" class="w-5 h-5 accent-twitch" id="mentions-enabled" {{if not .ConfigValid}}disabled{{end}}>
             </div>
-            <input type="checkbox" role="switch" id="mentions-enabled" {{if not .ConfigValid}}disabled{{end}}>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">All Chats</div>
+                    <div class="setting-description">Notify for mentions in all tracked streams</div>
+                </div>
+                <input type="checkbox" class="w-5 h-5 accent-twitch" id="mentions-all-chats" {{if not .ConfigValid}}disabled{{end}}>
+            </div>
+            
+            <div class="setting-row flex-col items-start gap-2 hidden" id="mentions-streamers-row">
+                <div>
+                    <div class="setting-label">Selected Streamers</div>
+                    <div class="setting-description">Only notify for mentions in these chats</div>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-2" id="mentions-streamers">
+                    {{range .Streamers}}
+                    <label class="flex items-center gap-1 bg-twitch-bg px-2 py-1 rounded border border-twitch-border text-sm cursor-pointer hover:border-twitch transition-colors">
+                        <input type="checkbox" class="w-4 h-4 accent-twitch" value="{{.}}" {{if not $.ConfigValid}}disabled{{end}}>
+                        <span>{{.}}</span>
+                    </label>
+                    {{end}}
+                </div>
+            </div>
         </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">All Chats</div>
-                <div class="setting-description">Notify for mentions in all tracked streams</div>
-            </div>
-            <input type="checkbox" role="switch" id="mentions-all-chats" {{if not .ConfigValid}}disabled{{end}}>
-        </div>
-        
-        <div class="setting-row streamer-select-row" id="mentions-streamers-row" style="display: none;">
-            <div>
-                <div class="setting-label">Selected Streamers</div>
-                <div class="setting-description">Only notify for mentions in these chats</div>
-            </div>
-            <div class="streamer-checkboxes" id="mentions-streamers">
-                {{range .Streamers}}
-                <label class="streamer-checkbox">
-                    <input type="checkbox" value="{{.}}" {{if not $.ConfigValid}}disabled{{end}}>
-                    {{.}}
+    </details>
+
+    <details class="details-panel" open>
+        <summary class="text-lg">Point Goals</summary>
+        <div class="details-content">
+            <p class="text-twitch-muted text-sm mb-4">Get notified when you reach a point threshold in a channel.</p>
+            
+            <div class="flex flex-wrap gap-3 items-center mb-4">
+                <select id="point-rule-streamer" class="input-field w-52" {{if not .ConfigValid}}disabled{{end}}>
+                    {{range .Streamers}}
+                    <option value="{{.}}">{{.}}</option>
+                    {{end}}
+                </select>
+                <input type="number" id="point-rule-threshold" placeholder="Point threshold" min="1" class="input-field w-48" {{if not .ConfigValid}}disabled{{end}}>
+                <label class="flex items-center gap-2 text-twitch-muted text-sm whitespace-nowrap">
+                    <input type="checkbox" class="w-4 h-4 accent-twitch" id="point-rule-delete" {{if not .ConfigValid}}disabled{{end}}>
+                    <span>Delete after trigger</span>
                 </label>
-                {{end}}
+                <button type="button" id="add-point-rule-btn" class="btn-secondary" {{if not .ConfigValid}}disabled{{end}}>Add Rule</button>
+            </div>
+            
+            <table class="w-full" id="point-rules-table">
+                <thead>
+                    <tr>
+                        <th>Streamer</th>
+                        <th>Threshold</th>
+                        <th>One-time</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="point-rules-body">
+                </tbody>
+            </table>
+        </div>
+    </details>
+
+    <details class="details-panel" open>
+        <summary class="text-lg">Stream Status</summary>
+        <div class="details-content">
+            <p class="text-twitch-muted text-sm mb-4">Get notified when streamers go online or offline.</p>
+            
+            <h4 class="subsection-title">Online Notifications</h4>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Enable Online Notifications</div>
+                    <div class="setting-description">Receive notifications when streamers go live</div>
+                </div>
+                <input type="checkbox" class="w-5 h-5 accent-twitch" id="online-enabled" {{if not .ConfigValid}}disabled{{end}}>
+            </div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">All Streamers</div>
+                    <div class="setting-description">Notify for all tracked streamers</div>
+                </div>
+                <input type="checkbox" class="w-5 h-5 accent-twitch" id="online-all-streamers" {{if not .ConfigValid}}disabled{{end}}>
+            </div>
+            
+            <div class="setting-row flex-col items-start gap-2 hidden" id="online-streamers-row">
+                <div>
+                    <div class="setting-label">Selected Streamers</div>
+                    <div class="setting-description">Only notify for these streamers</div>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-2" id="online-streamers">
+                    {{range .Streamers}}
+                    <label class="flex items-center gap-1 bg-twitch-bg px-2 py-1 rounded border border-twitch-border text-sm cursor-pointer hover:border-twitch transition-colors">
+                        <input type="checkbox" class="w-4 h-4 accent-twitch" value="{{.}}" {{if not $.ConfigValid}}disabled{{end}}>
+                        <span>{{.}}</span>
+                    </label>
+                    {{end}}
+                </div>
+            </div>
+            
+            <h4 class="subsection-title mt-6">Offline Notifications</h4>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Enable Offline Notifications</div>
+                    <div class="setting-description">Receive notifications when streamers go offline</div>
+                </div>
+                <input type="checkbox" class="w-5 h-5 accent-twitch" id="offline-enabled" {{if not .ConfigValid}}disabled{{end}}>
+            </div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">All Streamers</div>
+                    <div class="setting-description">Notify for all tracked streamers</div>
+                </div>
+                <input type="checkbox" class="w-5 h-5 accent-twitch" id="offline-all-streamers" {{if not .ConfigValid}}disabled{{end}}>
+            </div>
+            
+            <div class="setting-row flex-col items-start gap-2 hidden" id="offline-streamers-row">
+                <div>
+                    <div class="setting-label">Selected Streamers</div>
+                    <div class="setting-description">Only notify for these streamers</div>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-2" id="offline-streamers">
+                    {{range .Streamers}}
+                    <label class="flex items-center gap-1 bg-twitch-bg px-2 py-1 rounded border border-twitch-border text-sm cursor-pointer hover:border-twitch transition-colors">
+                        <input type="checkbox" class="w-4 h-4 accent-twitch" value="{{.}}" {{if not $.ConfigValid}}disabled{{end}}>
+                        <span>{{.}}</span>
+                    </label>
+                    {{end}}
+                </div>
             </div>
         </div>
     </details>
 
-    <details open>
-        <summary>Point Goals</summary>
-        <p><small>Get notified when you reach a point threshold in a channel.</small></p>
-        
-        <div class="add-rule-row">
-            <select id="point-rule-streamer" {{if not .ConfigValid}}disabled{{end}}>
-                {{range .Streamers}}
-                <option value="{{.}}">{{.}}</option>
-                {{end}}
-            </select>
-            <input type="number" id="point-rule-threshold" placeholder="Point threshold" min="1" {{if not .ConfigValid}}disabled{{end}}>
-            <div class="inline-switch">
-                <input type="checkbox" role="switch" id="point-rule-delete" {{if not .ConfigValid}}disabled{{end}}>
-                <span>Delete after trigger</span>
-            </div>
-            <button type="button" id="add-point-rule-btn" class="secondary" {{if not .ConfigValid}}disabled{{end}}>Add Rule</button>
-        </div>
-        
-        <table id="point-rules-table">
-            <thead>
-                <tr>
-                    <th>Streamer</th>
-                    <th>Threshold</th>
-                    <th>One-time</th>
-                    <th>Status</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody id="point-rules-body">
-            </tbody>
-        </table>
-    </details>
-
-    <details open>
-        <summary>Stream Status</summary>
-        <p><small>Get notified when streamers go online or offline.</small></p>
-        
-        <h4 class="subsection-title">Online Notifications</h4>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Enable Online Notifications</div>
-                <div class="setting-description">Receive notifications when streamers go live</div>
-            </div>
-            <input type="checkbox" role="switch" id="online-enabled" {{if not .ConfigValid}}disabled{{end}}>
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">All Streamers</div>
-                <div class="setting-description">Notify for all tracked streamers</div>
-            </div>
-            <input type="checkbox" role="switch" id="online-all-streamers" {{if not .ConfigValid}}disabled{{end}}>
-        </div>
-        
-        <div class="setting-row streamer-select-row" id="online-streamers-row" style="display: none;">
-            <div>
-                <div class="setting-label">Selected Streamers</div>
-                <div class="setting-description">Only notify for these streamers</div>
-            </div>
-            <div class="streamer-checkboxes" id="online-streamers">
-                {{range .Streamers}}
-                <label class="streamer-checkbox">
-                    <input type="checkbox" value="{{.}}" {{if not $.ConfigValid}}disabled{{end}}>
-                    {{.}}
-                </label>
-                {{end}}
-            </div>
-        </div>
-        
-        <h4 class="subsection-title">Offline Notifications</h4>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Enable Offline Notifications</div>
-                <div class="setting-description">Receive notifications when streamers go offline</div>
-            </div>
-            <input type="checkbox" role="switch" id="offline-enabled" {{if not .ConfigValid}}disabled{{end}}>
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">All Streamers</div>
-                <div class="setting-description">Notify for all tracked streamers</div>
-            </div>
-            <input type="checkbox" role="switch" id="offline-all-streamers" {{if not .ConfigValid}}disabled{{end}}>
-        </div>
-        
-        <div class="setting-row streamer-select-row" id="offline-streamers-row" style="display: none;">
-            <div>
-                <div class="setting-label">Selected Streamers</div>
-                <div class="setting-description">Only notify for these streamers</div>
-            </div>
-            <div class="streamer-checkboxes" id="offline-streamers">
-                {{range .Streamers}}
-                <label class="streamer-checkbox">
-                    <input type="checkbox" value="{{.}}" {{if not $.ConfigValid}}disabled{{end}}>
-                    {{.}}
-                </label>
-                {{end}}
-            </div>
-        </div>
-    </details>
-
-    <div class="button-row">
-        <button type="button" class="secondary" id="test-notifications-btn" onclick="testNotifications()" {{if not .ConfigValid}}disabled{{end}}>Test All Notifications</button>
-        <button type="button" id="save-notifications-btn" {{if not .ConfigValid}}disabled{{end}}>Save Settings</button>
+    <div class="flex gap-4 justify-end pt-4">
+        <button type="button" class="btn-secondary" id="test-notifications-btn" onclick="testNotifications()" {{if not .ConfigValid}}disabled{{end}}>Test All Notifications</button>
+        <button type="button" class="btn-primary" id="save-notifications-btn" {{if not .ConfigValid}}disabled{{end}}>Save Settings</button>
     </div>
 </div>
 
@@ -245,200 +253,6 @@
 {{end}}
 
 {{define "scripts"}}
-<style>
-    .disabled-overlay {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-    
-    .add-rule-row {
-        display: flex;
-        gap: 0.75rem;
-        align-items: center;
-        margin-bottom: 1rem;
-        flex-wrap: wrap;
-    }
-    
-    .add-rule-row input[type="number"] {
-        width: 200px;
-        min-width: 200px;
-        margin-bottom: 0;
-    }
-    
-    .add-rule-row select {
-        width: 220px;
-        min-width: 220px;
-        margin-bottom: 0;
-    }
-    
-    .channel-select {
-        min-width: 280px !important;
-    }
-    
-    .inline-switch {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: #adadb8;
-        font-size: 0.875rem;
-        white-space: nowrap;
-    }
-    
-    .inline-switch input {
-        margin: 0;
-    }
-    
-    .channel-select-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .channel-select-wrapper select {
-        margin-bottom: 0;
-    }
-    
-    .channel-reload-btn {
-        background: none;
-        border: 1px solid #303033;
-        border-radius: 0.25rem;
-        color: #adadb8;
-        cursor: pointer;
-        width: 38px;
-        height: 38px;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        transition: color 0.2s, border-color 0.2s;
-    }
-    
-    .channel-reload-btn svg {
-        width: 18px;
-        height: 18px;
-    }
-    
-    .channel-reload-btn:hover {
-        color: var(--twitch-purple);
-        border-color: var(--twitch-purple);
-    }
-    
-    .channel-reload-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    
-    .channel-reload-btn.spinning svg {
-        animation: spin 1s linear infinite;
-    }
-    
-    .channel-loading {
-        width: 20px;
-        height: 20px;
-        border: 2px solid #303033;
-        border-top-color: var(--twitch-purple);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-    
-    .channel-error {
-        color: #eb0400;
-        font-size: 0.75rem;
-    }
-    
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-    
-    .add-rule-row button {
-        margin-bottom: 0;
-    }
-    
-    .inline-checkbox {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: #adadb8;
-        font-size: 0.875rem;
-        white-space: nowrap;
-    }
-    
-    .inline-checkbox input {
-        margin: 0;
-        width: auto;
-    }
-    
-    #point-rules-table {
-        width: 100%;
-        margin-top: 1rem;
-    }
-    
-    #point-rules-table th {
-        text-align: left;
-        padding: 0.5rem;
-        border-bottom: 1px solid #303033;
-        color: #adadb8;
-        font-size: 0.875rem;
-    }
-    
-    #point-rules-table td {
-        padding: 0.5rem;
-        border-bottom: 1px solid #303033;
-    }
-    
-    #point-rules-table .status-triggered {
-        color: #36b535;
-    }
-    
-    #point-rules-table .status-waiting {
-        color: #adadb8;
-    }
-    
-    .delete-rule-btn {
-        background: none;
-        border: none;
-        color: #adadb8;
-        cursor: pointer;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
-    }
-    
-    .delete-rule-btn:hover {
-        color: #eb0400;
-        background: rgba(235, 4, 0, 0.1);
-    }
-    
-    .streamer-checkboxes {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-    }
-    
-    .streamer-checkbox {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        background: #0e0e10;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
-        border: 1px solid #303033;
-        font-size: 0.875rem;
-        color: #efeff1;
-    }
-    
-    .streamer-checkbox input {
-        margin: 0;
-        width: auto;
-    }
-    
-    .streamer-select-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-</style>
-
 <script>
     let channels = [];
     let config = null;
@@ -448,26 +262,23 @@
 
     function showChannelLoading(show) {
         document.querySelectorAll('.channel-loading').forEach(el => {
-            el.style.display = show ? 'block' : 'none';
+            el.classList.toggle('hidden', !show);
         });
     }
 
     function showChannelError(message) {
         document.querySelectorAll('.channel-loading').forEach(el => {
-            el.classList.remove('channel-loading');
-            el.classList.add('channel-error');
-            el.textContent = message;
+            el.classList.add('hidden');
         });
     }
 
     async function reloadChannels() {
         const buttons = document.querySelectorAll('.channel-reload-btn');
         buttons.forEach(btn => {
-            btn.classList.add('spinning');
+            btn.classList.add('animate-spin');
             btn.disabled = true;
         });
         
-        // Clear cache on server by forcing fresh fetch
         channelsLoaded = false;
         channels = [];
         
@@ -475,7 +286,7 @@
             await loadChannels(true);
         } finally {
             buttons.forEach(btn => {
-                btn.classList.remove('spinning');
+                btn.classList.remove('animate-spin');
                 btn.disabled = false;
             });
         }
@@ -507,11 +318,7 @@
             }
         } catch (error) {
             clearTimeout(timeoutId);
-            if (error.name === 'AbortError') {
-                showChannelError('Timeout');
-            } else {
-                showChannelError('Error');
-            }
+            showChannelError('Error');
             console.error('Failed to load channels:', error);
         }
     }
@@ -594,7 +401,7 @@
         const allCheckbox = document.getElementById(prefix + '-all-chats') || document.getElementById(prefix + '-all-streamers');
         const row = document.getElementById(prefix + '-streamers-row');
         if (allCheckbox && row) {
-            row.style.display = allCheckbox.checked ? 'none' : 'flex';
+            row.classList.toggle('hidden', allCheckbox.checked);
         }
     }
 
@@ -617,7 +424,7 @@
         tbody.innerHTML = '';
 
         if (pointRules.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #adadb8;">No point rules configured</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-twitch-muted py-4">No point rules configured</td></tr>';
             return;
         }
 
@@ -627,8 +434,8 @@
                 <td>${rule.streamer}</td>
                 <td>${formatNumber(rule.threshold)}</td>
                 <td>${rule.deleteOnTrigger ? 'Yes' : 'No'}</td>
-                <td class="${rule.triggered ? 'status-triggered' : 'status-waiting'}">${rule.triggered ? 'Triggered' : 'Waiting'}</td>
-                <td><button class="delete-rule-btn" onclick="deletePointRule(${rule.id})">✕</button></td>
+                <td class="${rule.triggered ? 'text-twitch-success' : 'text-twitch-muted'}">${rule.triggered ? 'Triggered' : 'Waiting'}</td>
+                <td><button class="px-2 py-1 text-twitch-muted hover:text-twitch-live hover:bg-twitch-live/10 rounded transition-colors" onclick="deletePointRule(${rule.id})">✕</button></td>
             `;
             tbody.appendChild(tr);
         });
@@ -721,7 +528,7 @@
     function showToast(message, type = 'success') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
+        toast.className = `toast ${type === 'success' ? 'toast-success' : 'toast-error'}`;
         toast.textContent = message;
         container.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
@@ -750,18 +557,15 @@
         }
     }
 
-    // Event listeners
     document.getElementById('mentions-all-chats')?.addEventListener('change', () => toggleStreamerSelect('mentions'));
     document.getElementById('online-all-streamers')?.addEventListener('change', () => toggleStreamerSelect('online'));
     document.getElementById('offline-all-streamers')?.addEventListener('change', () => toggleStreamerSelect('offline'));
     document.getElementById('add-point-rule-btn')?.addEventListener('click', addPointRule);
     document.getElementById('save-notifications-btn')?.addEventListener('click', saveConfig);
 
-    // Initialize - load config immediately, channels load async in background
     loadConfig();
     loadPointRules();
     loadChannels().then(() => {
-        // Re-apply channel values once channels are loaded
         if (config && channelsLoaded) {
             document.getElementById('mentions-channel').value = config.mentionsChannelId || '';
             document.getElementById('points-channel').value = config.pointsChannelId || '';

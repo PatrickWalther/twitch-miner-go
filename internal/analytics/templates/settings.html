@@ -1,209 +1,222 @@
 {{define "title"}}Settings - Twitch Points Miner{{end}}
 
 {{define "content"}}
-<h1>Settings</h1>
-<p><small>Configure runtime settings. Changes take effect immediately.</small></p>
+<h1 class="text-3xl font-bold mb-2">Settings</h1>
+<p class="text-twitch-muted text-sm mb-6">Configure runtime settings. Changes take effect immediately.</p>
 
-<form id="settings-form">
-    <details id="streamers">
-        <summary>Streamers</summary>
-        <p><small>Manage streamers to track. Drag to reorder. Click to expand per-streamer settings.</small></p>
-        
-        <div class="add-streamer-row">
-            <input type="text" id="new-streamer-input" placeholder="Enter streamer username">
-            <button type="button" id="add-streamer-btn" class="secondary">Add Streamer</button>
-        </div>
-        
-        <ul class="streamer-list" id="streamer-list">
-        </ul>
-    </details>
-
-    <details id="defaults">
-        <summary>Default Streamer Settings</summary>
-        <p><small>These settings apply to all streamers unless overridden individually.</small></p>
-        <div id="default-settings-container"></div>
-    </details>
-
-    <details id="priority">
-        <summary>Priority Order</summary>
-        <p><small>Drag to reorder. Higher priority items are checked first when selecting which stream to watch.</small></p>
-        <ul class="priority-list" id="priority-list">
-        </ul>
-    </details>
-
-    <details id="ratelimits">
-        <summary>Rate Limits</summary>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Websocket Ping Interval</div>
-                <div class="setting-description">Seconds between websocket ping messages (20-60)</div>
+<form id="settings-form" class="space-y-4">
+    <details id="streamers" class="details-panel" open>
+        <summary class="text-lg">Streamers</summary>
+        <div class="details-content">
+            <p class="text-twitch-muted text-sm mb-4">Manage streamers to track. Drag to reorder. Click to expand per-streamer settings.</p>
+            
+            <div class="flex gap-3 mb-4">
+                <input type="text" id="new-streamer-input" placeholder="Enter streamer username" class="input-field flex-1">
+                <button type="button" id="add-streamer-btn" class="btn-secondary whitespace-nowrap">Add Streamer</button>
             </div>
-            <input type="number" class="setting-input" id="websocketPingInterval" min="20" max="60">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Campaign Sync Interval</div>
-                <div class="setting-description">Seconds between drop campaign syncs (5-120)</div>
-            </div>
-            <input type="number" class="setting-input" id="campaignSyncInterval" min="5" max="120">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Minute Watched Interval</div>
-                <div class="setting-description">Base seconds between minute watched cycles (30-120, divided by # of streamers)</div>
-            </div>
-            <input type="number" class="setting-input" id="minuteWatchedInterval" min="30" max="120">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Request Delay</div>
-                <div class="setting-description">Seconds delay between API requests (0.1-2.0)</div>
-            </div>
-            <input type="number" class="setting-input" id="requestDelay" min="0.1" max="2.0" step="0.1">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Reconnect Delay</div>
-                <div class="setting-description">Seconds to wait before reconnecting (30-300)</div>
-            </div>
-            <input type="number" class="setting-input" id="reconnectDelay" min="30" max="300">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Stream Check Interval</div>
-                <div class="setting-description">Seconds between stream online checks (60-900)</div>
-            </div>
-            <input type="number" class="setting-input" id="streamCheckInterval" min="60" max="900">
+            
+            <ul class="space-y-2" id="streamer-list">
+            </ul>
         </div>
     </details>
 
-    <details id="logger">
-        <summary>Logger</summary>
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Console Log Level</div>
-                <div class="setting-description">Minimum log level shown in console</div>
-            </div>
-            <select class="setting-input" id="consoleLevel">
-                <option value="DEBUG">DEBUG</option>
-                <option value="INFO">INFO</option>
-                <option value="WARN">WARN</option>
-                <option value="ERROR">ERROR</option>
-            </select>
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">File Log Level</div>
-                <div class="setting-description">Minimum log level saved to file</div>
-            </div>
-            <select class="setting-input" id="fileLevel">
-                <option value="DEBUG">DEBUG</option>
-                <option value="INFO">INFO</option>
-                <option value="WARN">WARN</option>
-                <option value="ERROR">ERROR</option>
-            </select>
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Less Verbose</div>
-                <div class="setting-description">Reduce log output verbosity</div>
-            </div>
-            <input type="checkbox" role="switch" id="less">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Colored Output</div>
-                <div class="setting-description">Enable colored console output</div>
-            </div>
-            <input type="checkbox" role="switch" id="colored">
+    <details id="defaults" class="details-panel">
+        <summary class="text-lg">Default Streamer Settings</summary>
+        <div class="details-content">
+            <p class="text-twitch-muted text-sm mb-4">These settings apply to all streamers unless overridden individually.</p>
+            <div id="default-settings-container"></div>
         </div>
     </details>
 
-    <details id="analytics">
-        <summary>Analytics</summary>
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Refresh Interval</div>
-                <div class="setting-description">Minutes between dashboard auto-refresh</div>
-            </div>
-            <input type="number" class="setting-input" id="refresh" min="1" max="60">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Days of History</div>
-                <div class="setting-description">Number of days to show in charts</div>
-            </div>
-            <input type="number" class="setting-input" id="daysAgo" min="1" max="365">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Enable Chat Logs</div>
-                <div class="setting-description">Log chat messages to database</div>
-            </div>
-            <input type="checkbox" role="switch" id="enableChatLogs">
+    <details id="priority" class="details-panel">
+        <summary class="text-lg">Priority Order</summary>
+        <div class="details-content">
+            <p class="text-twitch-muted text-sm mb-4">Drag to reorder. Higher priority items are checked first when selecting which stream to watch.</p>
+            <ul class="space-y-2" id="priority-list">
+            </ul>
         </div>
     </details>
 
-    <details id="discord-settings">
-        <summary>Discord Integration</summary>
-        <p><small>Configure Discord notifications. You'll need to create a Discord bot and add it to your server.</small></p>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Enable Discord Notifications</div>
-                <div class="setting-description">Turn on Discord integration (requires restart after enabling)</div>
+    <details id="ratelimits" class="details-panel">
+        <summary class="text-lg">Rate Limits</summary>
+        <div class="details-content space-y-0">
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Websocket Ping Interval</div>
+                    <div class="setting-description">Seconds between websocket ping messages (20-60)</div>
+                </div>
+                <input type="number" class="input-field w-28" id="websocketPingInterval" min="20" max="60">
             </div>
-            <input type="checkbox" role="switch" id="discordEnabled">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Bot Token</div>
-                <div class="setting-description">Your Discord bot token (keep this secret!)</div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Campaign Sync Interval</div>
+                    <div class="setting-description">Seconds between drop campaign syncs (5-120)</div>
+                </div>
+                <input type="number" class="input-field w-28" id="campaignSyncInterval" min="5" max="120">
             </div>
-            <input type="password" class="setting-input" id="discordBotToken" style="width: 300px; min-width: 300px; max-width: 300px;" placeholder="••••••••">
-        </div>
-        
-        <div class="setting-row">
-            <div>
-                <div class="setting-label">Guild ID</div>
-                <div class="setting-description">Your Discord server ID</div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Minute Watched Interval</div>
+                    <div class="setting-description">Base seconds between minute watched cycles (30-120, divided by # of streamers)</div>
+                </div>
+                <input type="number" class="input-field w-28" id="minuteWatchedInterval" min="30" max="120">
             </div>
-            <input type="text" class="setting-input" id="discordGuildId" style="width: 200px; min-width: 200px; max-width: 200px;" placeholder="123456789012345678">
-        </div>
-        
-        <div style="background: #0e0e10; border: 1px solid #303033; border-radius: 0.5rem; padding: 1rem; margin-top: 1rem;">
-            <div style="color: #efeff1; font-weight: 500; margin-bottom: 0.75rem;">How to create a Discord bot:</div>
-            <ol style="color: #adadb8; font-size: 0.875rem; margin: 0; padding-left: 1.25rem;">
-                <li>Go to the <a href="https://discord.com/developers/applications" target="_blank" style="color: var(--twitch-purple);">Discord Developer Portal</a></li>
-                <li>Click <strong>New Application</strong> and give it a name</li>
-                <li>Go to <strong>Bot</strong> section → Click <strong>Reset Token</strong> and copy it</li>
-                <li>Enable <strong>Message Content Intent</strong> under Privileged Gateway Intents</li>
-                <li>Go to <strong>OAuth2 → URL Generator</strong></li>
-                <li>Select <strong>bot</strong> scope with <strong>Send Messages</strong> and <strong>Read Message History</strong> permissions</li>
-                <li>Copy the generated URL and open it to add the bot to your server</li>
-            </ol>
-            <div style="color: #efeff1; font-weight: 500; margin: 0.75rem 0 0.5rem 0;">How to find your Guild (Server) ID:</div>
-            <p style="color: #adadb8; font-size: 0.875rem; margin: 0;">
-                See <a href="https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID" target="_blank" style="color: var(--twitch-purple);">Discord's guide</a> on finding your Server ID.
-            </p>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Request Delay</div>
+                    <div class="setting-description">Seconds delay between API requests (0.1-2.0)</div>
+                </div>
+                <input type="number" class="input-field w-28" id="requestDelay" min="0.1" max="2.0" step="0.1">
+            </div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Reconnect Delay</div>
+                    <div class="setting-description">Seconds to wait before reconnecting (30-300)</div>
+                </div>
+                <input type="number" class="input-field w-28" id="reconnectDelay" min="30" max="300">
+            </div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Stream Check Interval</div>
+                    <div class="setting-description">Seconds between stream online checks (60-900)</div>
+                </div>
+                <input type="number" class="input-field w-28" id="streamCheckInterval" min="60" max="900">
+            </div>
         </div>
     </details>
 
-    <div class="button-row">
-        <button type="button" class="secondary" id="reset-btn">Reset to Defaults</button>
-        <button type="submit" id="save-btn">Save Settings</button>
+    <details id="logger" class="details-panel">
+        <summary class="text-lg">Logger</summary>
+        <div class="details-content space-y-0">
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Console Log Level</div>
+                    <div class="setting-description">Minimum log level shown in console</div>
+                </div>
+                <select class="input-field w-36" id="consoleLevel">
+                    <option value="DEBUG">DEBUG</option>
+                    <option value="INFO">INFO</option>
+                    <option value="WARN">WARN</option>
+                    <option value="ERROR">ERROR</option>
+                </select>
+            </div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">File Log Level</div>
+                    <div class="setting-description">Minimum log level saved to file</div>
+                </div>
+                <select class="input-field w-36" id="fileLevel">
+                    <option value="DEBUG">DEBUG</option>
+                    <option value="INFO">INFO</option>
+                    <option value="WARN">WARN</option>
+                    <option value="ERROR">ERROR</option>
+                </select>
+            </div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Less Verbose</div>
+                    <div class="setting-description">Reduce log output verbosity</div>
+                </div>
+                <input type="checkbox" id="less" class="w-5 h-5 accent-twitch">
+            </div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Colored Output</div>
+                    <div class="setting-description">Enable colored console output</div>
+                </div>
+                <input type="checkbox" id="colored" class="w-5 h-5 accent-twitch">
+            </div>
+        </div>
+    </details>
+
+    <details id="analytics" class="details-panel">
+        <summary class="text-lg">Analytics</summary>
+        <div class="details-content space-y-0">
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Refresh Interval</div>
+                    <div class="setting-description">Minutes between dashboard auto-refresh</div>
+                </div>
+                <input type="number" class="input-field w-28" id="refresh" min="1" max="60">
+            </div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Days of History</div>
+                    <div class="setting-description">Number of days to show in charts</div>
+                </div>
+                <input type="number" class="input-field w-28" id="daysAgo" min="1" max="365">
+            </div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Enable Chat Logs</div>
+                    <div class="setting-description">Log chat messages to database</div>
+                </div>
+                <input type="checkbox" id="enableChatLogs" class="w-5 h-5 accent-twitch">
+            </div>
+        </div>
+    </details>
+
+    <details id="discord-settings" class="details-panel">
+        <summary class="text-lg">Discord Integration</summary>
+        <div class="details-content">
+            <p class="text-twitch-muted text-sm mb-4">Configure Discord notifications. You'll need to create a Discord bot and add it to your server.</p>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Enable Discord Notifications</div>
+                    <div class="setting-description">Turn on Discord integration (requires restart after enabling)</div>
+                </div>
+                <input type="checkbox" id="discordEnabled" class="w-5 h-5 accent-twitch">
+            </div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Bot Token</div>
+                    <div class="setting-description">Your Discord bot token (keep this secret!)</div>
+                </div>
+                <input type="password" class="input-field w-72" id="discordBotToken" placeholder="••••••••">
+            </div>
+            
+            <div class="setting-row">
+                <div>
+                    <div class="setting-label">Guild ID</div>
+                    <div class="setting-description">Your Discord server ID</div>
+                </div>
+                <input type="text" class="input-field w-52" id="discordGuildId" placeholder="123456789012345678">
+            </div>
+            
+            <div class="bg-twitch-bg border border-twitch-border rounded-lg p-4 mt-4">
+                <div class="text-twitch-text font-medium mb-3">How to create a Discord bot:</div>
+                <ol class="text-twitch-muted text-sm space-y-1 list-decimal pl-5">
+                    <li>Go to the <a href="https://discord.com/developers/applications" target="_blank" class="text-twitch hover:underline">Discord Developer Portal</a></li>
+                    <li>Click <strong class="text-twitch-text">New Application</strong> and give it a name</li>
+                    <li>Go to <strong class="text-twitch-text">Bot</strong> section → Click <strong class="text-twitch-text">Reset Token</strong> and copy it</li>
+                    <li>Enable <strong class="text-twitch-text">Message Content Intent</strong> under Privileged Gateway Intents</li>
+                    <li>Go to <strong class="text-twitch-text">OAuth2 → URL Generator</strong></li>
+                    <li>Select <strong class="text-twitch-text">bot</strong> scope with <strong class="text-twitch-text">Send Messages</strong> and <strong class="text-twitch-text">Read Message History</strong> permissions</li>
+                    <li>Copy the generated URL and open it to add the bot to your server</li>
+                </ol>
+                <div class="text-twitch-text font-medium mt-4 mb-2">How to find your Guild (Server) ID:</div>
+                <p class="text-twitch-muted text-sm">
+                    See <a href="https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID" target="_blank" class="text-twitch hover:underline">Discord's guide</a> on finding your Server ID.
+                </p>
+            </div>
+        </div>
+    </details>
+
+    <div class="flex gap-4 justify-end pt-4">
+        <button type="button" class="btn-secondary" id="reset-btn">Reset to Defaults</button>
+        <button type="submit" class="btn-primary" id="save-btn">Save Settings</button>
     </div>
 </form>
 
@@ -259,14 +272,11 @@
     }
 
     function populateForm(settings) {
-        // Streamers
         populateStreamerList(settings.streamers || []);
         
-        // Default settings
         const defaultContainer = document.getElementById('default-settings-container');
         defaultContainer.innerHTML = renderStreamerSettingsForm('default', settings.defaultSettings || {}, false);
 
-        // Priority
         const priorityList = document.getElementById('priority-list');
         priorityList.innerHTML = '';
         settings.priority.forEach(p => {
@@ -274,12 +284,11 @@
             li.className = 'priority-item';
             li.draggable = true;
             li.dataset.priority = p;
-            li.innerHTML = `<span class="priority-handle">☰</span> ${priorityLabels[p] || p}`;
+            li.innerHTML = `<span class="text-twitch-muted text-lg cursor-grab">☰</span> <span class="text-twitch-text">${priorityLabels[p] || p}</span>`;
             priorityList.appendChild(li);
         });
         setupPriorityDragAndDrop();
 
-        // Rate limits
         document.getElementById('websocketPingInterval').value = settings.rateLimits.websocketPingInterval;
         document.getElementById('campaignSyncInterval').value = settings.rateLimits.campaignSyncInterval;
         document.getElementById('minuteWatchedInterval').value = settings.rateLimits.minuteWatchedInterval;
@@ -287,18 +296,15 @@
         document.getElementById('reconnectDelay').value = settings.rateLimits.reconnectDelay;
         document.getElementById('streamCheckInterval').value = settings.rateLimits.streamCheckInterval;
 
-        // Logger
         document.getElementById('consoleLevel').value = settings.logger.consoleLevel;
         document.getElementById('fileLevel').value = settings.logger.fileLevel;
         document.getElementById('less').checked = settings.logger.less;
         document.getElementById('colored').checked = settings.logger.colored;
 
-        // Analytics
         document.getElementById('refresh').value = settings.analytics.refresh;
         document.getElementById('daysAgo').value = settings.analytics.daysAgo;
         document.getElementById('enableChatLogs').checked = settings.analytics.enableChatLogs;
 
-        // Discord
         if (settings.discord) {
             document.getElementById('discordEnabled').checked = settings.discord.enabled;
             document.getElementById('discordBotToken').value = settings.discord.botToken || '';
@@ -327,21 +333,21 @@
         
         li.innerHTML = `
             <div class="streamer-header" onclick="toggleStreamerExpand(this.parentElement)">
-                <div class="streamer-drag-handle">☰</div>
-                <span class="streamer-name">${streamer.username}</span>
+                <div class="text-twitch-muted text-lg cursor-grab">☰</div>
+                <span class="flex-1 text-twitch-text font-medium">${streamer.username}</span>
                 ${hasOverrides ? '<span class="override-badge">Custom</span>' : ''}
-                <span class="streamer-expand-icon">▼</span>
-                <button type="button" class="streamer-remove-btn" onclick="event.stopPropagation(); removeStreamer('${streamer.username}')">✕</button>
+                <span class="text-twitch-muted text-xs transition-transform duration-200 expand-icon">▼</span>
+                <button type="button" class="ml-2 px-2 py-1 text-twitch-muted hover:text-twitch-live hover:bg-twitch-live/10 rounded transition-colors" onclick="event.stopPropagation(); removeStreamer('${streamer.username}')">✕</button>
             </div>
-            <div class="streamer-settings-panel">
-                <div class="streamer-settings-header">
-                    <label>
-                        <input type="checkbox" role="switch" class="use-override-checkbox" ${hasOverrides ? 'checked' : ''} 
+            <div class="hidden border-t border-twitch-border bg-twitch-card settings-panel">
+                <div class="p-4 border-b border-twitch-border">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="w-5 h-5 accent-twitch use-override-checkbox" ${hasOverrides ? 'checked' : ''} 
                                onchange="toggleOverride(this, '${streamer.username}')">
-                        Use custom settings for this streamer
+                        <span class="text-twitch-text">Use custom settings for this streamer</span>
                     </label>
                 </div>
-                <div class="streamer-settings-content" style="${hasOverrides ? '' : 'display: none;'}">
+                <div class="p-4 settings-content" style="${hasOverrides ? '' : 'display: none;'}">
                     ${renderStreamerSettingsForm(streamer.username, streamer.settings || {}, true)}
                 </div>
             </div>
@@ -358,130 +364,135 @@
         const selectValue = (field, value, defaultVal) => value !== undefined && value !== null ? value : defaultVal;
 
         return `
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Make Predictions</div>
-                    <div class="setting-description">Automatically bet on predictions</div>
+            <div class="space-y-0">
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Make Predictions</div>
+                        <div class="setting-description">Automatically bet on predictions</div>
+                    </div>
+                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="makePredictions" data-prefix="${prefix}" ${checkboxAttrs('makePredictions', settings.makePredictions)}>
                 </div>
-                <input type="checkbox" role="switch" data-field="makePredictions" data-prefix="${prefix}" ${checkboxAttrs('makePredictions', settings.makePredictions)}>
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Follow Raid</div>
-                    <div class="setting-description">Follow when streamer raids another channel</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Follow Raid</div>
+                        <div class="setting-description">Follow when streamer raids another channel</div>
+                    </div>
+                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="followRaid" data-prefix="${prefix}" ${checkboxAttrs('followRaid', settings.followRaid)}>
                 </div>
-                <input type="checkbox" role="switch" data-field="followRaid" data-prefix="${prefix}" ${checkboxAttrs('followRaid', settings.followRaid)}>
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Claim Drops</div>
-                    <div class="setting-description">Automatically claim drop rewards</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Claim Drops</div>
+                        <div class="setting-description">Automatically claim drop rewards</div>
+                    </div>
+                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="claimDrops" data-prefix="${prefix}" ${checkboxAttrs('claimDrops', settings.claimDrops)}>
                 </div>
-                <input type="checkbox" role="switch" data-field="claimDrops" data-prefix="${prefix}" ${checkboxAttrs('claimDrops', settings.claimDrops)}>
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Claim Moments</div>
-                    <div class="setting-description">Claim channel moments</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Claim Moments</div>
+                        <div class="setting-description">Claim channel moments</div>
+                    </div>
+                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="claimMoments" data-prefix="${prefix}" ${checkboxAttrs('claimMoments', settings.claimMoments)}>
                 </div>
-                <input type="checkbox" role="switch" data-field="claimMoments" data-prefix="${prefix}" ${checkboxAttrs('claimMoments', settings.claimMoments)}>
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Watch Streak</div>
-                    <div class="setting-description">Maintain watch streak bonus</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Watch Streak</div>
+                        <div class="setting-description">Maintain watch streak bonus</div>
+                    </div>
+                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="watchStreak" data-prefix="${prefix}" ${checkboxAttrs('watchStreak', settings.watchStreak)}>
                 </div>
-                <input type="checkbox" role="switch" data-field="watchStreak" data-prefix="${prefix}" ${checkboxAttrs('watchStreak', settings.watchStreak)}>
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Community Goals</div>
-                    <div class="setting-description">Contribute to community goals</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Community Goals</div>
+                        <div class="setting-description">Contribute to community goals</div>
+                    </div>
+                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="communityGoals" data-prefix="${prefix}" ${checkboxAttrs('communityGoals', settings.communityGoals)}>
                 </div>
-                <input type="checkbox" role="switch" data-field="communityGoals" data-prefix="${prefix}" ${checkboxAttrs('communityGoals', settings.communityGoals)}>
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Chat Presence</div>
-                    <div class="setting-description">When to join chat</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Chat Presence</div>
+                        <div class="setting-description">When to join chat</div>
+                    </div>
+                    <select class="input-field w-36" data-field="chat" data-prefix="${prefix}">
+                        ${chatOptions.map(o => `<option value="${o.value}" ${selectValue('chat', settings.chat, 'ONLINE') === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+                    </select>
                 </div>
-                <select class="setting-input" data-field="chat" data-prefix="${prefix}">
-                    ${chatOptions.map(o => `<option value="${o.value}" ${selectValue('chat', settings.chat, 'ONLINE') === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
-                </select>
-            </div>
-            
-            <h4 style="color: var(--twitch-purple); margin: 1.5rem 0 1rem 0; font-size: 0.95rem;">Betting Settings</h4>
-            
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Strategy</div>
-                    <div class="setting-description">How to choose prediction outcome</div>
+                
+                <h4 class="text-twitch font-medium mt-6 mb-4 text-sm">Betting Settings</h4>
+                
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Strategy</div>
+                        <div class="setting-description">How to choose prediction outcome</div>
+                    </div>
+                    <select class="input-field w-36" data-field="bet.strategy" data-prefix="${prefix}">
+                        ${strategyOptions.map(o => `<option value="${o.value}" ${selectValue('strategy', bet.strategy, 'SMART') === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+                    </select>
                 </div>
-                <select class="setting-input" data-field="bet.strategy" data-prefix="${prefix}">
-                    ${strategyOptions.map(o => `<option value="${o.value}" ${selectValue('strategy', bet.strategy, 'SMART') === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
-                </select>
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Bet Percentage</div>
-                    <div class="setting-description">Percentage of points to bet (1-100)</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Bet Percentage</div>
+                        <div class="setting-description">Percentage of points to bet (1-100)</div>
+                    </div>
+                    <input type="number" class="input-field w-28" data-field="bet.percentage" data-prefix="${prefix}" min="1" max="100" value="${bet.percentage !== undefined ? bet.percentage : 5}">
                 </div>
-                <input type="number" class="setting-input" data-field="bet.percentage" data-prefix="${prefix}" min="1" max="100" value="${bet.percentage !== undefined ? bet.percentage : 5}">
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Percentage Gap</div>
-                    <div class="setting-description">Gap threshold for smart strategy</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Percentage Gap</div>
+                        <div class="setting-description">Gap threshold for smart strategy</div>
+                    </div>
+                    <input type="number" class="input-field w-28" data-field="bet.percentageGap" data-prefix="${prefix}" min="0" max="100" value="${bet.percentageGap !== undefined ? bet.percentageGap : 20}">
                 </div>
-                <input type="number" class="setting-input" data-field="bet.percentageGap" data-prefix="${prefix}" min="0" max="100" value="${bet.percentageGap !== undefined ? bet.percentageGap : 20}">
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Max Points</div>
-                    <div class="setting-description">Maximum points to bet</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Max Points</div>
+                        <div class="setting-description">Maximum points to bet</div>
+                    </div>
+                    <input type="number" class="input-field w-28" data-field="bet.maxPoints" data-prefix="${prefix}" min="0" value="${bet.maxPoints !== undefined ? bet.maxPoints : 50000}">
                 </div>
-                <input type="number" class="setting-input" data-field="bet.maxPoints" data-prefix="${prefix}" min="0" value="${bet.maxPoints !== undefined ? bet.maxPoints : 50000}">
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Minimum Points</div>
-                    <div class="setting-description">Minimum balance required to bet</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Minimum Points</div>
+                        <div class="setting-description">Minimum balance required to bet</div>
+                    </div>
+                    <input type="number" class="input-field w-28" data-field="bet.minimumPoints" data-prefix="${prefix}" min="0" value="${bet.minimumPoints !== undefined ? bet.minimumPoints : 0}">
                 </div>
-                <input type="number" class="setting-input" data-field="bet.minimumPoints" data-prefix="${prefix}" min="0" value="${bet.minimumPoints !== undefined ? bet.minimumPoints : 0}">
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Stealth Mode</div>
-                    <div class="setting-description">Bet slightly less than top predictor</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Stealth Mode</div>
+                        <div class="setting-description">Bet slightly less than top predictor</div>
+                    </div>
+                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="bet.stealthMode" data-prefix="${prefix}" ${checkboxAttrs('stealthMode', bet.stealthMode)}>
                 </div>
-                <input type="checkbox" role="switch" data-field="bet.stealthMode" data-prefix="${prefix}" ${checkboxAttrs('stealthMode', bet.stealthMode)}>
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Delay</div>
-                    <div class="setting-description">Seconds to wait before betting</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Delay</div>
+                        <div class="setting-description">Seconds to wait before betting</div>
+                    </div>
+                    <input type="number" class="input-field w-28" data-field="bet.delay" data-prefix="${prefix}" min="0" step="0.5" value="${bet.delay !== undefined ? bet.delay : 6}">
                 </div>
-                <input type="number" class="setting-input" data-field="bet.delay" data-prefix="${prefix}" min="0" step="0.5" value="${bet.delay !== undefined ? bet.delay : 6}">
-            </div>
-            <div class="setting-row">
-                <div>
-                    <div class="setting-label">Delay Mode</div>
-                    <div class="setting-description">How delay is calculated</div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-label">Delay Mode</div>
+                        <div class="setting-description">How delay is calculated</div>
+                    </div>
+                    <select class="input-field w-36" data-field="bet.delayMode" data-prefix="${prefix}">
+                        ${delayModeOptions.map(o => `<option value="${o.value}" ${selectValue('delayMode', bet.delayMode, 'FROM_END') === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+                    </select>
                 </div>
-                <select class="setting-input" data-field="bet.delayMode" data-prefix="${prefix}">
-                    ${delayModeOptions.map(o => `<option value="${o.value}" ${selectValue('delayMode', bet.delayMode, 'FROM_END') === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
-                </select>
             </div>
         `;
     }
 
     function toggleStreamerExpand(li) {
-        li.classList.toggle('expanded');
+        const panel = li.querySelector('.settings-panel');
+        const icon = li.querySelector('.expand-icon');
+        panel.classList.toggle('hidden');
+        icon.style.transform = panel.classList.contains('hidden') ? '' : 'rotate(180deg)';
     }
 
     function toggleOverride(checkbox, username) {
-        const panel = checkbox.closest('.streamer-settings-panel');
-        const content = panel.querySelector('.streamer-settings-content');
+        const panel = checkbox.closest('.settings-panel');
+        const content = panel.querySelector('.settings-content');
         content.style.display = checkbox.checked ? '' : 'none';
     }
 
@@ -640,7 +651,7 @@
     function showToast(message, type = 'success') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
+        toast.className = `toast ${type === 'success' ? 'toast-success' : 'toast-error'}`;
         toast.textContent = message;
         container.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);

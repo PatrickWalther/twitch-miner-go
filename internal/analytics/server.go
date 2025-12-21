@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -24,6 +25,9 @@ import (
 
 //go:embed templates/*.html templates/partials/*.html
 var templatesFS embed.FS
+
+//go:embed static/*
+var staticFS embed.FS
 
 type AnalyticsServer struct {
 	host           string
@@ -180,6 +184,14 @@ func (s *AnalyticsServer) SetDiscordEnabled(enabled bool) {
 
 func (s *AnalyticsServer) Start() {
 	mux := http.NewServeMux()
+
+	// Serve static files from embedded filesystem
+	staticSub, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		slog.Error("Failed to create static filesystem", "error", err)
+	} else {
+		mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticSub))))
+	}
 
 	mux.HandleFunc("/", s.handleDashboard)
 	mux.HandleFunc("/settings", s.handleSettingsPage)

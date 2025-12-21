@@ -1,0 +1,223 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-twitch-bg text-twitch-text;
+  }
+
+  body {
+    @apply min-h-screen;
+  }
+
+  a {
+    @apply text-twitch hover:text-twitch-dark transition-colors;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-twitch-text;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="password"],
+  input[type="email"],
+  input[type="date"],
+  select,
+  textarea {
+    @apply bg-twitch-bg border border-twitch-border rounded-md px-3 py-2 text-twitch-text 
+           focus:outline-none focus:border-twitch focus:ring-1 focus:ring-twitch;
+  }
+
+  input[type="checkbox"] {
+    @apply w-4 h-4 accent-twitch;
+  }
+
+  button {
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-twitch focus:ring-offset-2 focus:ring-offset-twitch-bg;
+  }
+
+  table {
+    @apply w-full border-collapse;
+  }
+
+  th {
+    @apply text-left p-2 border-b border-twitch-border text-twitch-muted text-sm;
+  }
+
+  td {
+    @apply p-2 border-b border-twitch-border;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-twitch text-white hover:bg-twitch-dark;
+  }
+
+  .btn-secondary {
+    @apply bg-twitch-card border border-twitch-border text-twitch-text hover:border-twitch hover:text-twitch;
+  }
+
+  .btn-danger {
+    @apply bg-twitch-live/10 border border-twitch-live text-twitch-live hover:bg-twitch-live hover:text-white;
+  }
+
+  .card {
+    @apply bg-twitch-card border border-twitch-border rounded-lg p-6;
+  }
+
+  .input-field {
+    @apply bg-twitch-bg border border-twitch-border rounded-md px-3 py-2 text-twitch-text 
+           focus:outline-none focus:border-twitch focus:ring-1 focus:ring-twitch;
+  }
+
+  .toggle-switch {
+    @apply relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+           bg-twitch-border focus:outline-none focus:ring-2 focus:ring-twitch focus:ring-offset-2 focus:ring-offset-twitch-bg;
+  }
+
+  .toggle-switch[aria-checked="true"],
+  .toggle-switch:checked {
+    @apply bg-twitch;
+  }
+
+  .nav-link {
+    @apply inline-flex items-center gap-2 px-3 py-2 rounded-md text-twitch-muted
+           bg-white/5 border border-twitch-border
+           hover:text-twitch hover:bg-twitch/15 hover:border-twitch transition-all;
+  }
+
+  .section-title {
+    @apply text-xl font-semibold text-twitch-text pb-2 mb-4 border-b border-twitch-border;
+  }
+
+  .subsection-title {
+    @apply text-sm font-medium text-twitch-muted uppercase tracking-wide my-3;
+  }
+
+  .setting-row {
+    @apply flex items-center justify-between py-3 border-b border-twitch-border last:border-b-0;
+  }
+
+  .setting-label {
+    @apply text-twitch-text font-medium;
+  }
+
+  .setting-description {
+    @apply text-twitch-muted text-xs mt-1;
+  }
+
+  .toast {
+    @apply fixed bottom-8 right-8 px-6 py-4 rounded-lg text-white font-medium z-[1000]
+           animate-slide-in;
+  }
+
+  .toast-success {
+    @apply bg-twitch-success;
+  }
+
+  .toast-error {
+    @apply bg-twitch-live;
+  }
+
+  .live-badge {
+    @apply bg-twitch-live text-white text-[0.65rem] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide;
+  }
+
+  .streamer-card {
+    @apply card cursor-pointer transition-all duration-200 hover:border-twitch hover:-translate-y-0.5;
+  }
+
+  .streamer-card.is-live {
+    @apply border-twitch-live shadow-[0_0_10px_rgba(235,4,0,0.3)];
+  }
+
+  .stat-card {
+    @apply card text-center;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold text-twitch;
+  }
+
+  .chart-container {
+    @apply bg-twitch-card border border-twitch-border rounded-lg p-6 mt-6;
+  }
+
+  .details-panel {
+    @apply bg-twitch-card border border-twitch-border rounded-lg overflow-hidden;
+  }
+
+  .details-panel summary {
+    @apply px-4 py-3 cursor-pointer font-medium text-twitch-text hover:bg-twitch/10 transition-colors;
+  }
+
+  .details-panel[open] summary {
+    @apply border-b border-twitch-border;
+  }
+
+  .details-content {
+    @apply p-4;
+  }
+
+  .priority-item {
+    @apply flex items-center gap-3 p-3 bg-twitch-bg border border-twitch-border rounded-md mb-2 cursor-grab;
+  }
+
+  .priority-item.dragging {
+    @apply opacity-50 border-twitch;
+  }
+
+  .streamer-item {
+    @apply bg-twitch-bg border border-twitch-border rounded-lg mb-2 overflow-hidden;
+  }
+
+  .streamer-item.dragging {
+    @apply opacity-50 border-twitch;
+  }
+
+  .streamer-header {
+    @apply flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-twitch/10;
+  }
+
+  .override-badge {
+    @apply bg-twitch text-white text-[0.65rem] px-2 py-0.5 rounded uppercase;
+  }
+}
+
+@layer utilities {
+  .animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  .animate-pulse-loading {
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

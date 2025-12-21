@@ -1,27 +1,29 @@
 {{define "streamer_card"}}
-<article class="{{if .IsLive}}is-live{{end}}" onclick="window.location='/streamer/{{.Name}}'">
+<article class="streamer-card relative {{if .IsLive}}is-live{{end}}" onclick="window.location='/streamer/{{.Name}}'">
     {{if .IsLive}}
-    <a href="https://twitch.tv/{{.Name}}" target="_blank" class="stream-link" title="Watch on Twitch" onclick="event.stopPropagation();">
-        <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+    <a href="https://twitch.tv/{{.Name}}" target="_blank" class="absolute top-3 right-3 text-twitch-muted hover:text-twitch transition-colors z-10" title="Watch on Twitch" onclick="event.stopPropagation();">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
+        </svg>
     </a>
     {{end}}
-    <div class="card-header">
-        <h3>{{.Name}}</h3>
+    <div class="flex items-center justify-between gap-2 pr-7 mb-2">
+        <h3 class="text-twitch font-semibold text-lg truncate">{{.Name}}</h3>
         {{if .IsLive}}
-        <span class="live-badge">LIVE</span>
+        <span class="live-badge flex-shrink-0">LIVE</span>
         {{end}}
     </div>
-    <div class="points">{{.PointsFormatted}}</div>
-    <div class="points-label">channel points</div>
-    <div class="stream-status">
+    <div class="text-3xl font-bold text-twitch-text">{{.PointsFormatted}}</div>
+    <div class="text-sm text-twitch-muted">channel points</div>
+    <div class="text-sm mt-2">
         {{if .IsLive}}
-        <span class="status-live">Streaming for {{.LiveDuration}}</span>
+        <span class="text-twitch-live">Streaming for {{.LiveDuration}}</span>
         {{else if .OfflineDuration}}
-        <span class="status-offline">Offline for {{.OfflineDuration}}</span>
+        <span class="text-twitch-muted">Offline for {{.OfflineDuration}}</span>
         {{end}}
     </div>
     {{if not .IsLive}}
-    <div class="last-activity">Last activity: {{.LastActivityFormatted}}</div>
+    <div class="text-xs text-twitch-muted mt-2">Last activity: {{.LastActivityFormatted}}</div>
     {{end}}
 </article>
 {{end}}

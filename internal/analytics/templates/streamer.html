@@ -1,147 +1,59 @@
 {{define "title"}}{{.Streamer.Name}} - Twitch Points Miner{{end}}
 
 {{define "content"}}
-<a href="/" class="back-link">← Back to Dashboard</a>
+<a href="/" class="inline-flex items-center gap-2 text-twitch-muted hover:text-twitch mb-4 transition-colors">
+    ← Back to Dashboard
+</a>
 
-<h1 style="color: var(--twitch-purple);">{{.Streamer.Name}}</h1>
+<h1 class="text-3xl font-bold text-twitch mb-6">{{.Streamer.Name}}</h1>
 
-<div class="stats-row">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
     <article class="stat-card">
-        <div class="value" id="current-points">{{.Streamer.Points}}</div>
-        <div class="label">Current Points</div>
+        <div class="stat-value" id="current-points">{{.Streamer.Points}}</div>
+        <div class="text-twitch-muted mt-2">Current Points</div>
     </article>
     <article class="stat-card">
-        <div class="value" id="points-gained">{{.PointsGained}}</div>
-        <div class="label">Points Gained ({{.DaysAgo}}d)</div>
+        <div class="stat-value" id="points-gained">{{.PointsGained}}</div>
+        <div class="text-twitch-muted mt-2">Points Gained ({{.DaysAgo}}d)</div>
     </article>
     <article class="stat-card">
-        <div class="value" id="data-points">{{.DataPoints}}</div>
-        <div class="label">Data Points</div>
+        <div class="stat-value" id="data-points">{{.DataPoints}}</div>
+        <div class="text-twitch-muted mt-2">Data Points</div>
     </article>
 </div>
 
 <div class="chart-container">
-    <h3>Points Over Time</h3>
+    <h3 class="text-lg font-semibold mb-4">Points Over Time</h3>
     <div id="points-chart"></div>
 </div>
 
-<div class="chart-container" style="margin-top: 1rem;">
-    <h3>Date Range</h3>
-    <form id="date-filter" style="display: flex; gap: 1rem; align-items: end;">
-        <label>
-            Start Date
-            <input type="date" id="start-date" name="startDate">
+<div class="chart-container">
+    <h3 class="text-lg font-semibold mb-4">Date Range</h3>
+    <form id="date-filter" class="flex flex-wrap gap-4 items-end">
+        <label class="flex flex-col gap-1">
+            <span class="text-sm text-twitch-muted">Start Date</span>
+            <input type="date" id="start-date" name="startDate" class="input-field">
         </label>
-        <label>
-            End Date
-            <input type="date" id="end-date" name="endDate">
+        <label class="flex flex-col gap-1">
+            <span class="text-sm text-twitch-muted">End Date</span>
+            <input type="date" id="end-date" name="endDate" class="input-field">
         </label>
-        <button type="submit">Apply</button>
+        <button type="submit" class="btn-primary">Apply</button>
     </form>
 </div>
 
-<div class="chart-container" style="margin-top: 1rem;">
-    <h3>Chat Log</h3>
-    <div class="chat-search">
-        <input type="text" id="chat-search" placeholder="Search messages..." autocomplete="off">
-        <button id="chat-search-clear" style="display: none;">✕</button>
-        <span id="chat-search-info"></span>
+<div class="chart-container">
+    <h3 class="text-lg font-semibold mb-4">Chat Log</h3>
+    <div class="flex items-center gap-2 mb-4">
+        <input type="text" id="chat-search" placeholder="Search messages..." autocomplete="off" class="input-field flex-1">
+        <button id="chat-search-clear" class="hidden px-3 py-2 bg-twitch-border rounded-md text-twitch-text hover:bg-twitch-muted/20">✕</button>
+        <span id="chat-search-info" class="text-xs text-twitch-muted"></span>
     </div>
-    <div id="chat-log" class="chat-log-container">
-        <div class="chat-messages" id="chat-messages"></div>
-        <div class="chat-loading" id="chat-loading" style="display: none;">Loading...</div>
+    <div id="chat-log" class="h-96 overflow-y-auto relative">
+        <div class="chat-messages flex flex-col gap-1" id="chat-messages"></div>
+        <div class="chat-loading hidden text-center p-4 text-twitch-muted" id="chat-loading">Loading...</div>
     </div>
 </div>
-
-<style>
-    .chat-search {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    .chat-search input {
-        flex: 1;
-        padding: 0.5rem;
-        background: #0e0e10;
-        border: 1px solid #303033;
-        border-radius: 0.25rem;
-        color: #efeff1;
-    }
-    .chat-search input:focus {
-        outline: none;
-        border-color: var(--twitch-purple);
-    }
-    .chat-search button {
-        padding: 0.5rem 0.75rem;
-        background: #303033;
-        border: none;
-        border-radius: 0.25rem;
-        color: #efeff1;
-        cursor: pointer;
-    }
-    .chat-search-info {
-        color: #adadb8;
-        font-size: 0.75rem;
-    }
-    .chat-log-container {
-        height: 400px;
-        overflow-y: auto;
-        position: relative;
-    }
-    .chat-messages {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-    .chat-message {
-        padding: 0.5rem;
-        background: #0e0e10;
-        border-radius: 0.25rem;
-        font-size: 0.875rem;
-        line-height: 1.4;
-        word-wrap: break-word;
-        min-height: 32px;
-    }
-    .chat-message .timestamp {
-        color: #6b6b6b;
-        font-size: 0.75rem;
-        margin-right: 0.5rem;
-    }
-    .chat-message .username {
-        font-weight: bold;
-        margin-right: 0.25rem;
-    }
-    .chat-message .message-text {
-        color: #efeff1;
-    }
-    .chat-message .emote {
-        height: 1.5em;
-        vertical-align: middle;
-        margin: 0 0.1rem;
-    }
-    .chat-message .badge {
-        height: 1.1em;
-        vertical-align: middle;
-        margin-right: 0.2rem;
-    }
-    .chat-loading {
-        text-align: center;
-        padding: 1rem;
-        color: #adadb8;
-    }
-    .chat-no-messages {
-        color: #adadb8;
-        text-align: center;
-        padding: 2rem;
-    }
-    .chat-message mark {
-        background: var(--twitch-purple);
-        color: #fff;
-        padding: 0 0.15rem;
-        border-radius: 2px;
-    }
-</style>
 {{end}}
 
 {{define "scripts"}}
@@ -270,9 +182,8 @@
         }
     }
     
-    // Set default dates in user's local timezone
     function formatLocalDate(date) {
-        return date.toLocaleDateString('en-CA'); // Returns YYYY-MM-DD format
+        return date.toLocaleDateString('en-CA');
     }
     
     function initDefaultDates() {
@@ -293,13 +204,11 @@
         loadChart(startDate, endDate);
     });
     
-    // Initial load
     loadChart(
         document.getElementById('start-date').value,
         document.getElementById('end-date').value
     );
     
-    // Auto-refresh chart
     setInterval(function() {
         loadChart(
             document.getElementById('start-date').value,
@@ -307,7 +216,6 @@
         );
     }, {{.RefreshMinutes}} * 60 * 1000);
     
-    // Chat log functionality with virtual scrolling
     const chatState = {
         messages: [],
         totalCount: 0,
@@ -353,7 +261,7 @@
         let result = message;
         for (const emote of emotes) {
             const emoteUrl = `https://static-cdn.jtvnw.net/emoticons/v2/${emote.id}/default/dark/1.0`;
-            const img = `<img class="emote" src="${emoteUrl}" alt="${escapeHtml(emote.text)}" title="${escapeHtml(emote.text)}">`;
+            const img = `<img class="h-6 align-middle mx-0.5 inline" src="${emoteUrl}" alt="${escapeHtml(emote.text)}" title="${escapeHtml(emote.text)}">`;
             result = result.substring(0, emote.start) + img + result.substring(emote.end);
         }
         
@@ -381,7 +289,7 @@
     function highlightSearch(text, query) {
         if (!query) return text;
         const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-        return text.replace(regex, '<mark>$1</mark>');
+        return text.replace(regex, '<mark class="bg-twitch text-white px-0.5 rounded-sm">$1</mark>');
     }
     
     function renderChatMessage(msg, searchQuery = '') {
@@ -394,10 +302,10 @@
         }
         
         return `
-            <div class="chat-message" data-id="${msg.id}">
-                <span class="timestamp">${formatChatTimestamp(msg.timestamp)}</span>
-                <span class="username" style="color: ${escapeHtml(color)}">${escapeHtml(displayName)}:</span>
-                <span class="message-text">${messageHtml}</span>
+            <div class="p-2 bg-twitch-bg rounded text-sm leading-relaxed min-h-[32px]" data-id="${msg.id}">
+                <span class="text-twitch-muted/50 text-xs mr-2">${formatChatTimestamp(msg.timestamp)}</span>
+                <span class="font-bold mr-1" style="color: ${escapeHtml(color)}">${escapeHtml(displayName)}:</span>
+                <span class="text-twitch-text">${messageHtml}</span>
             </div>
         `;
     }
@@ -405,7 +313,7 @@
     async function fetchChatMessages(offset = 0, append = false) {
         if (chatState.loading) return;
         chatState.loading = true;
-        chatLoading.style.display = 'block';
+        chatLoading.classList.remove('hidden');
         
         try {
             let url = `/api/chat/${streamerName}?limit=${chatState.limit}&offset=${offset}`;
@@ -434,7 +342,7 @@
             console.error('Failed to load chat messages:', err);
         } finally {
             chatState.loading = false;
-            chatLoading.style.display = 'none';
+            chatLoading.classList.add('hidden');
         }
     }
     
@@ -451,7 +359,7 @@
             const msg = chatState.searchQuery 
                 ? 'No messages found for your search' 
                 : 'No chat messages recorded';
-            chatMessages.innerHTML = `<div class="chat-no-messages">${msg}</div>`;
+            chatMessages.innerHTML = `<div class="text-twitch-muted text-center py-8">${msg}</div>`;
             return;
         }
         
@@ -473,14 +381,14 @@
     function handleSearch() {
         const query = chatSearch.value.trim();
         chatState.searchQuery = query;
-        chatSearchClear.style.display = query ? 'block' : 'none';
+        chatSearchClear.classList.toggle('hidden', !query);
         fetchChatMessages(0, false);
     }
     
     function clearSearch() {
         chatSearch.value = '';
         chatState.searchQuery = '';
-        chatSearchClear.style.display = 'none';
+        chatSearchClear.classList.add('hidden');
         fetchChatMessages(0, false);
     }
     
@@ -499,10 +407,8 @@
     
     chatSearchClear.addEventListener('click', clearSearch);
     
-    // Initial chat load
     fetchChatMessages(0, false);
     
-    // Auto-refresh chat (only if not searching)
     setInterval(function() {
         if (!chatState.searchQuery) {
             fetchChatMessages(0, false);
