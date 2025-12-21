@@ -80,6 +80,7 @@ jobs:
             ./cmd/miner
 
       - name: Compress with UPX
+        if: matrix.goos != 'darwin'
         run: upx --best --lzma twitch-miner-go-${{ matrix.suffix }}
 
       - name: Upload artifact
