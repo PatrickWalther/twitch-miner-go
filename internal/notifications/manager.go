@@ -22,8 +22,8 @@ type Manager struct {
 }
 
 // NewManager creates a new notification manager.
-func NewManager(discordCfg *config.DiscordSettings, db *database.DB, basePath string, streamers []string) (*Manager, error) {
-	repo, err := NewRepository(db, basePath)
+func NewManager(discordCfg *config.DiscordSettings, db *database.DB, streamers []string) (*Manager, error) {
+	repo, err := NewRepository(db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create notification repository: %w", err)
 	}

@@ -254,7 +254,7 @@ func (m *Miner) setupComponents() {
 	}
 
 	if m.config.Discord.Enabled {
-		notifMgr, err := notifications.NewManager(&m.config.Discord, m.db, m.dbBasePath, streamerNames)
+		notifMgr, err := notifications.NewManager(&m.config.Discord, m.db, streamerNames)
 		if err != nil {
 			slog.Error("Failed to create notification manager", "error", err)
 		} else {
@@ -579,7 +579,7 @@ func (m *Miner) ApplySettings(s settings.RuntimeSettings) {
 			streamerNames = append(streamerNames, st.Username)
 		}
 
-		newNotifMgr, err := notifications.NewManager(&discordCfg, m.db, m.dbBasePath, streamerNames)
+		newNotifMgr, err := notifications.NewManager(&discordCfg, m.db, streamerNames)
 		if err != nil {
 			slog.Error("Failed to create notification manager", "error", err)
 		} else {

@@ -1,12 +1,8 @@
 package notifications
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/PatrickWalther/twitch-miner-go/internal/database"
@@ -60,120 +56,13 @@ func (m *NotificationsModule) Migrations() []database.Migration {
 	}
 }
 
-func NewRepository(db *database.DB, basePath string) (*Repository, error) {
+func NewRepository(db *database.DB) (*Repository, error) {
 	module := &NotificationsModule{}
 	if err := db.RegisterModule(module); err != nil {
 		return nil, fmt.Errorf("failed to register notifications module: %w", err)
 	}
 
-	repo := &Repository{db: db}
-
-	if err := repo.migrateFromOldDB(basePath); err != nil {
-		slog.Warn("Old notifications.db migration had errors", "error", err)
-	}
-
-	return repo, nil
-}
-
-func (r *Repository) migrateFromOldDB(basePath string) error {
-	oldDBPath := filepath.Join(basePath, "notifications.db")
-	if _, err := os.Stat(oldDBPath); os.IsNotExist(err) {
-		return nil
-	}
-
-	slog.Info("Migrating data from old notifications.db")
-
-	oldDB, err := sql.Open("sqlite", oldDBPath)
-	if err != nil {
-		return fmt.Errorf("failed to open old database: %w", err)
-	}
-	defer func() { _ = oldDB.Close() }()
-
-	row := oldDB.QueryRow(`
-		SELECT 
-			mentions_channel_id, points_channel_id, online_channel_id, offline_channel_id,
-			mentions_enabled, mentions_all_chats, mentions_streamers,
-			online_enabled, online_all_streamers, online_streamers,
-			offline_enabled, offline_all_streamers, offline_streamers
-		FROM notification_config WHERE id = 1
-	`)
-
-	var mentionsChannelID, pointsChannelID, onlineChannelID, offlineChannelID string
-	var mentionsEnabled, mentionsAllChats bool
-	var mentionsStreamersJSON string
-	var onlineEnabled, onlineAllStreamers bool
-	var onlineStreamersJSON string
-	var offlineEnabled, offlineAllStreamers bool
-	var offlineStreamersJSON string
-
-	err = row.Scan(
-		&mentionsChannelID, &pointsChannelID, &onlineChannelID, &offlineChannelID,
-		&mentionsEnabled, &mentionsAllChats, &mentionsStreamersJSON,
-		&onlineEnabled, &onlineAllStreamers, &onlineStreamersJSON,
-		&offlineEnabled, &offlineAllStreamers, &offlineStreamersJSON,
-	)
-	if err != nil && err != sql.ErrNoRows {
-		return fmt.Errorf("failed to read old config: %w", err)
-	}
-
-	if err != sql.ErrNoRows {
-		_, err = r.db.Exec(`
-			UPDATE notification_config SET
-				mentions_channel_id = ?,
-				points_channel_id = ?,
-				online_channel_id = ?,
-				offline_channel_id = ?,
-				mentions_enabled = ?,
-				mentions_all_chats = ?,
-				mentions_streamers = ?,
-				online_enabled = ?,
-				online_all_streamers = ?,
-				online_streamers = ?,
-				offline_enabled = ?,
-				offline_all_streamers = ?,
-				offline_streamers = ?
-			WHERE id = 1
-		`,
-			mentionsChannelID, pointsChannelID, onlineChannelID, offlineChannelID,
-			mentionsEnabled, mentionsAllChats, mentionsStreamersJSON,
-			onlineEnabled, onlineAllStreamers, onlineStreamersJSON,
-			offlineEnabled, offlineAllStreamers, offlineStreamersJSON,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to migrate config: %w", err)
-		}
-	}
-
-	rows, err := oldDB.Query(`SELECT streamer, threshold, delete_on_trigger, triggered FROM point_rules`)
-	if err != nil && err != sql.ErrNoRows {
-		return fmt.Errorf("failed to read old point rules: %w", err)
-	}
-	if rows != nil {
-		defer func() { _ = rows.Close() }()
-		for rows.Next() {
-			var streamer string
-			var threshold int
-			var deleteOnTrigger, triggered bool
-			if err := rows.Scan(&streamer, &threshold, &deleteOnTrigger, &triggered); err != nil {
-				continue
-			}
-			_, err = r.db.Exec(`
-				INSERT INTO point_rules (streamer, threshold, delete_on_trigger, triggered)
-				VALUES (?, ?, ?, ?)
-			`, streamer, threshold, deleteOnTrigger, triggered)
-			if err != nil {
-				slog.Warn("Failed to migrate point rule", "streamer", streamer, "error", err)
-			}
-		}
-	}
-
-	if err := os.Remove(oldDBPath); err != nil {
-		slog.Warn("Failed to delete old notifications.db", "error", err)
-	} else {
-		slog.Info("Deleted old notifications.db after successful migration")
-	}
-
-	return nil
+	return &Repository{db: db}, nil
 }
 
 func (r *Repository) Close() error {

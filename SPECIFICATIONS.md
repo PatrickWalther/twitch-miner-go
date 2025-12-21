@@ -820,15 +820,6 @@ CREATE TABLE point_rules (
 );
 ```
 
-#### Migration from Legacy Databases
-
-On startup, the application automatically migrates data from legacy database files:
-- `analytics/{username}/analytics.db` → migrated to unified database
-- `analytics/{username}/notifications.db` → migrated to unified database
-- `analytics/{username}/*.json` → migrated to unified database
-
-Legacy files are deleted after successful migration.
-
 **Note**: All timestamps are Unix timestamps in milliseconds.
 
 ---
