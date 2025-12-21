@@ -1,24 +1,24 @@
 {{define "title"}}{{.Streamer.Name}} - Twitch Points Miner{{end}}
 
 {{define "content"}}
-<a href="/" class="inline-flex items-center gap-2 text-twitch-muted hover:text-twitch mb-4 transition-colors">
+<a href="/" class="inline-flex items-center gap-2 text-neutral-400 hover:text-purple-500 mb-4 transition-colors">
     ← Back to Dashboard
 </a>
 
-<h1 class="text-3xl font-bold text-twitch mb-6">{{.Streamer.Name}}</h1>
+<h1 class="text-3xl font-bold text-purple-500 mb-6">{{.Streamer.Name}}</h1>
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
     <article class="stat-card">
-        <div class="stat-value" id="current-points">{{.Streamer.Points}}</div>
-        <div class="text-twitch-muted mt-2">Current Points</div>
+        <div class="text-3xl font-bold text-purple-500" id="current-points">{{.Streamer.Points}}</div>
+        <div class="text-neutral-400 mt-2">Current Points</div>
     </article>
     <article class="stat-card">
-        <div class="stat-value" id="points-gained">{{.PointsGained}}</div>
-        <div class="text-twitch-muted mt-2">Points Gained ({{.DaysAgo}}d)</div>
+        <div class="text-3xl font-bold text-purple-500" id="points-gained">{{.PointsGained}}</div>
+        <div class="text-neutral-400 mt-2">Points Gained ({{.DaysAgo}}d)</div>
     </article>
     <article class="stat-card">
-        <div class="stat-value" id="data-points">{{.DataPoints}}</div>
-        <div class="text-twitch-muted mt-2">Data Points</div>
+        <div class="text-3xl font-bold text-purple-500" id="data-points">{{.DataPoints}}</div>
+        <div class="text-neutral-400 mt-2">Data Points</div>
     </article>
 </div>
 
@@ -31,11 +31,11 @@
     <h3 class="text-lg font-semibold mb-4">Date Range</h3>
     <form id="date-filter" class="flex flex-wrap gap-4 items-end">
         <label class="flex flex-col gap-1">
-            <span class="text-sm text-twitch-muted">Start Date</span>
+            <span class="text-sm text-neutral-400">Start Date</span>
             <input type="date" id="start-date" name="startDate" class="input-field">
         </label>
         <label class="flex flex-col gap-1">
-            <span class="text-sm text-twitch-muted">End Date</span>
+            <span class="text-sm text-neutral-400">End Date</span>
             <input type="date" id="end-date" name="endDate" class="input-field">
         </label>
         <button type="submit" class="btn-primary">Apply</button>
@@ -46,12 +46,12 @@
     <h3 class="text-lg font-semibold mb-4">Chat Log</h3>
     <div class="flex items-center gap-2 mb-4">
         <input type="text" id="chat-search" placeholder="Search messages..." autocomplete="off" class="input-field flex-1">
-        <button id="chat-search-clear" class="hidden px-3 py-2 bg-twitch-border rounded-md text-twitch-text hover:bg-twitch-muted/20">✕</button>
-        <span id="chat-search-info" class="text-xs text-twitch-muted"></span>
+        <button id="chat-search-clear" class="hidden px-3 py-2 bg-neutral-700 rounded-md text-neutral-100 hover:bg-neutral-400/20">✕</button>
+        <span id="chat-search-info" class="text-xs text-neutral-400"></span>
     </div>
     <div id="chat-log" class="h-96 overflow-y-auto relative">
         <div class="chat-messages flex flex-col gap-1" id="chat-messages"></div>
-        <div class="chat-loading hidden text-center p-4 text-twitch-muted" id="chat-loading">Loading...</div>
+        <div class="chat-loading hidden text-center p-4 text-neutral-400" id="chat-loading">Loading...</div>
     </div>
 </div>
 {{end}}
@@ -289,7 +289,7 @@
     function highlightSearch(text, query) {
         if (!query) return text;
         const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-        return text.replace(regex, '<mark class="bg-twitch text-white px-0.5 rounded-sm">$1</mark>');
+        return text.replace(regex, '<mark class="bg-purple-600 text-white px-0.5 rounded-sm">$1</mark>');
     }
     
     function renderChatMessage(msg, searchQuery = '') {
@@ -302,10 +302,10 @@
         }
         
         return `
-            <div class="p-2 bg-twitch-bg rounded text-sm leading-relaxed min-h-[32px]" data-id="${msg.id}">
-                <span class="text-twitch-muted/50 text-xs mr-2">${formatChatTimestamp(msg.timestamp)}</span>
+            <div class="p-2 bg-neutral-900 rounded text-sm leading-relaxed min-h-[32px]" data-id="${msg.id}">
+                <span class="text-neutral-400/50 text-xs mr-2">${formatChatTimestamp(msg.timestamp)}</span>
                 <span class="font-bold mr-1" style="color: ${escapeHtml(color)}">${escapeHtml(displayName)}:</span>
-                <span class="text-twitch-text">${messageHtml}</span>
+                <span class="text-neutral-100">${messageHtml}</span>
             </div>
         `;
     }
@@ -359,7 +359,7 @@
             const msg = chatState.searchQuery 
                 ? 'No messages found for your search' 
                 : 'No chat messages recorded';
-            chatMessages.innerHTML = `<div class="text-twitch-muted text-center py-8">${msg}</div>`;
+            chatMessages.innerHTML = `<div class="text-neutral-400 text-center py-8">${msg}</div>`;
             return;
         }
         

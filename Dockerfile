@@ -4,7 +4,11 @@ FROM golang:1.24-alpine AS builder
 WORKDIR /build
 
 # Install git for version detection and ca-certificates for HTTPS
-RUN apk add --no-cache git ca-certificates tzdata
+RUN apk add --no-cache git ca-certificates tzdata curl
+
+# Download Tailwind CLI
+RUN curl -sLo /usr/local/bin/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-linux-x64 \
+    && chmod +x /usr/local/bin/tailwindcss
 
 # Copy go mod files first for better caching
 COPY go.mod go.sum ./
@@ -12,6 +16,12 @@ RUN go mod download
 
 # Copy source code
 COPY . .
+
+# Build Tailwind CSS
+RUN tailwindcss -c tailwind.config.js \
+    -i internal/analytics/static/css/input.css \
+    -o internal/analytics/static/css/app.css \
+    --minify
 
 # Build arguments for version injection
 ARG VERSION=dev

@@ -4,6 +4,9 @@ twitch-miner-go.exe
 dist/
 bin/
 
+# Generated CSS (built by Tailwind)
+internal/analytics/static/css/app.css
+
 # Configuration (contains sensitive data)
 config.json
 cookies/

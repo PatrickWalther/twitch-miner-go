@@ -2,13 +2,13 @@
 
 {{define "content"}}
 <h1 class="text-3xl font-bold mb-2">Settings</h1>
-<p class="text-twitch-muted text-sm mb-6">Configure runtime settings. Changes take effect immediately.</p>
+<p class="text-neutral-400 text-sm mb-6">Configure runtime settings. Changes take effect immediately.</p>
 
 <form id="settings-form" class="space-y-4">
-    <details id="streamers" class="details-panel" open>
+    <details id="streamers" class="details-panel">
         <summary class="text-lg">Streamers</summary>
         <div class="details-content">
-            <p class="text-twitch-muted text-sm mb-4">Manage streamers to track. Drag to reorder. Click to expand per-streamer settings.</p>
+            <p class="text-neutral-400 text-sm mb-4">Manage streamers to track. Drag to reorder. Click to expand per-streamer settings.</p>
             
             <div class="flex gap-3 mb-4">
                 <input type="text" id="new-streamer-input" placeholder="Enter streamer username" class="input-field flex-1">
@@ -23,7 +23,7 @@
     <details id="defaults" class="details-panel">
         <summary class="text-lg">Default Streamer Settings</summary>
         <div class="details-content">
-            <p class="text-twitch-muted text-sm mb-4">These settings apply to all streamers unless overridden individually.</p>
+            <p class="text-neutral-400 text-sm mb-4">These settings apply to all streamers unless overridden individually.</p>
             <div id="default-settings-container"></div>
         </div>
     </details>
@@ -31,7 +31,7 @@
     <details id="priority" class="details-panel">
         <summary class="text-lg">Priority Order</summary>
         <div class="details-content">
-            <p class="text-twitch-muted text-sm mb-4">Drag to reorder. Higher priority items are checked first when selecting which stream to watch.</p>
+            <p class="text-neutral-400 text-sm mb-4">Drag to reorder. Higher priority items are checked first when selecting which stream to watch.</p>
             <ul class="space-y-2" id="priority-list">
             </ul>
         </div>
@@ -124,7 +124,7 @@
                     <div class="setting-label">Less Verbose</div>
                     <div class="setting-description">Reduce log output verbosity</div>
                 </div>
-                <input type="checkbox" id="less" class="w-5 h-5 accent-twitch">
+                <input type="checkbox" id="less" class="w-5 h-5 accent-purple-600">
             </div>
             
             <div class="setting-row">
@@ -132,7 +132,7 @@
                     <div class="setting-label">Colored Output</div>
                     <div class="setting-description">Enable colored console output</div>
                 </div>
-                <input type="checkbox" id="colored" class="w-5 h-5 accent-twitch">
+                <input type="checkbox" id="colored" class="w-5 h-5 accent-purple-600">
             </div>
         </div>
     </details>
@@ -161,7 +161,7 @@
                     <div class="setting-label">Enable Chat Logs</div>
                     <div class="setting-description">Log chat messages to database</div>
                 </div>
-                <input type="checkbox" id="enableChatLogs" class="w-5 h-5 accent-twitch">
+                <input type="checkbox" id="enableChatLogs" class="w-5 h-5 accent-purple-600">
             </div>
         </div>
     </details>
@@ -169,14 +169,14 @@
     <details id="discord-settings" class="details-panel">
         <summary class="text-lg">Discord Integration</summary>
         <div class="details-content">
-            <p class="text-twitch-muted text-sm mb-4">Configure Discord notifications. You'll need to create a Discord bot and add it to your server.</p>
+            <p class="text-neutral-400 text-sm mb-4">Configure Discord notifications. You'll need to create a Discord bot and add it to your server.</p>
             
             <div class="setting-row">
                 <div>
                     <div class="setting-label">Enable Discord Notifications</div>
                     <div class="setting-description">Turn on Discord integration (requires restart after enabling)</div>
                 </div>
-                <input type="checkbox" id="discordEnabled" class="w-5 h-5 accent-twitch">
+                <input type="checkbox" id="discordEnabled" class="w-5 h-5 accent-purple-600">
             </div>
             
             <div class="setting-row">
@@ -195,20 +195,20 @@
                 <input type="text" class="input-field w-52" id="discordGuildId" placeholder="123456789012345678">
             </div>
             
-            <div class="bg-twitch-bg border border-twitch-border rounded-lg p-4 mt-4">
-                <div class="text-twitch-text font-medium mb-3">How to create a Discord bot:</div>
-                <ol class="text-twitch-muted text-sm space-y-1 list-decimal pl-5">
-                    <li>Go to the <a href="https://discord.com/developers/applications" target="_blank" class="text-twitch hover:underline">Discord Developer Portal</a></li>
-                    <li>Click <strong class="text-twitch-text">New Application</strong> and give it a name</li>
-                    <li>Go to <strong class="text-twitch-text">Bot</strong> section → Click <strong class="text-twitch-text">Reset Token</strong> and copy it</li>
-                    <li>Enable <strong class="text-twitch-text">Message Content Intent</strong> under Privileged Gateway Intents</li>
-                    <li>Go to <strong class="text-twitch-text">OAuth2 → URL Generator</strong></li>
-                    <li>Select <strong class="text-twitch-text">bot</strong> scope with <strong class="text-twitch-text">Send Messages</strong> and <strong class="text-twitch-text">Read Message History</strong> permissions</li>
+            <div class="bg-neutral-900 border border-neutral-700 rounded-lg p-4 mt-4">
+                <div class="text-neutral-100 font-medium mb-3">How to create a Discord bot:</div>
+                <ol class="text-neutral-400 text-sm space-y-1 list-decimal pl-5">
+                    <li>Go to the <a href="https://discord.com/developers/applications" target="_blank" class="text-purple-500 hover:underline">Discord Developer Portal</a></li>
+                    <li>Click <strong class="text-neutral-100">New Application</strong> and give it a name</li>
+                    <li>Go to <strong class="text-neutral-100">Bot</strong> section → Click <strong class="text-neutral-100">Reset Token</strong> and copy it</li>
+                    <li>Enable <strong class="text-neutral-100">Message Content Intent</strong> under Privileged Gateway Intents</li>
+                    <li>Go to <strong class="text-neutral-100">OAuth2 → URL Generator</strong></li>
+                    <li>Select <strong class="text-neutral-100">bot</strong> scope with <strong class="text-neutral-100">Send Messages</strong> and <strong class="text-neutral-100">Read Message History</strong> permissions</li>
                     <li>Copy the generated URL and open it to add the bot to your server</li>
                 </ol>
-                <div class="text-twitch-text font-medium mt-4 mb-2">How to find your Guild (Server) ID:</div>
-                <p class="text-twitch-muted text-sm">
-                    See <a href="https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID" target="_blank" class="text-twitch hover:underline">Discord's guide</a> on finding your Server ID.
+                <div class="text-neutral-100 font-medium mt-4 mb-2">How to find your Guild (Server) ID:</div>
+                <p class="text-neutral-400 text-sm">
+                    See <a href="https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID" target="_blank" class="text-purple-500 hover:underline">Discord's guide</a> on finding your Server ID.
                 </p>
             </div>
         </div>
@@ -284,7 +284,7 @@
             li.className = 'priority-item';
             li.draggable = true;
             li.dataset.priority = p;
-            li.innerHTML = `<span class="text-twitch-muted text-lg cursor-grab">☰</span> <span class="text-twitch-text">${priorityLabels[p] || p}</span>`;
+            li.innerHTML = `<span class="text-neutral-400 text-lg cursor-grab">☰</span> <span class="text-neutral-100">${priorityLabels[p] || p}</span>`;
             priorityList.appendChild(li);
         });
         setupPriorityDragAndDrop();
@@ -333,18 +333,18 @@
         
         li.innerHTML = `
             <div class="streamer-header" onclick="toggleStreamerExpand(this.parentElement)">
-                <div class="text-twitch-muted text-lg cursor-grab">☰</div>
-                <span class="flex-1 text-twitch-text font-medium">${streamer.username}</span>
+                <div class="text-neutral-400 text-lg cursor-grab">☰</div>
+                <span class="flex-1 text-neutral-100 font-medium">${streamer.username}</span>
                 ${hasOverrides ? '<span class="override-badge">Custom</span>' : ''}
-                <span class="text-twitch-muted text-xs transition-transform duration-200 expand-icon">▼</span>
-                <button type="button" class="ml-2 px-2 py-1 text-twitch-muted hover:text-twitch-live hover:bg-twitch-live/10 rounded transition-colors" onclick="event.stopPropagation(); removeStreamer('${streamer.username}')">✕</button>
+                <span class="text-neutral-400 text-xs transition-transform duration-200 expand-icon">▼</span>
+                <button type="button" class="ml-2 px-2 py-1 text-neutral-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors" onclick="event.stopPropagation(); removeStreamer('${streamer.username}')">✕</button>
             </div>
-            <div class="hidden border-t border-twitch-border bg-twitch-card settings-panel">
-                <div class="p-4 border-b border-twitch-border">
+            <div class="hidden border-t border-neutral-700 bg-neutral-800 settings-panel">
+                <div class="p-4 border-b border-neutral-700">
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" class="w-5 h-5 accent-twitch use-override-checkbox" ${hasOverrides ? 'checked' : ''} 
+                        <input type="checkbox" class="w-5 h-5 accent-purple-600 use-override-checkbox" ${hasOverrides ? 'checked' : ''} 
                                onchange="toggleOverride(this, '${streamer.username}')">
-                        <span class="text-twitch-text">Use custom settings for this streamer</span>
+                        <span class="text-neutral-100">Use custom settings for this streamer</span>
                     </label>
                 </div>
                 <div class="p-4 settings-content" style="${hasOverrides ? '' : 'display: none;'}">
@@ -370,42 +370,42 @@
                         <div class="setting-label">Make Predictions</div>
                         <div class="setting-description">Automatically bet on predictions</div>
                     </div>
-                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="makePredictions" data-prefix="${prefix}" ${checkboxAttrs('makePredictions', settings.makePredictions)}>
+                    <input type="checkbox" class="w-5 h-5 accent-purple-600" data-field="makePredictions" data-prefix="${prefix}" ${checkboxAttrs('makePredictions', settings.makePredictions)}>
                 </div>
                 <div class="setting-row">
                     <div>
                         <div class="setting-label">Follow Raid</div>
                         <div class="setting-description">Follow when streamer raids another channel</div>
                     </div>
-                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="followRaid" data-prefix="${prefix}" ${checkboxAttrs('followRaid', settings.followRaid)}>
+                    <input type="checkbox" class="w-5 h-5 accent-purple-600" data-field="followRaid" data-prefix="${prefix}" ${checkboxAttrs('followRaid', settings.followRaid)}>
                 </div>
                 <div class="setting-row">
                     <div>
                         <div class="setting-label">Claim Drops</div>
                         <div class="setting-description">Automatically claim drop rewards</div>
                     </div>
-                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="claimDrops" data-prefix="${prefix}" ${checkboxAttrs('claimDrops', settings.claimDrops)}>
+                    <input type="checkbox" class="w-5 h-5 accent-purple-600" data-field="claimDrops" data-prefix="${prefix}" ${checkboxAttrs('claimDrops', settings.claimDrops)}>
                 </div>
                 <div class="setting-row">
                     <div>
                         <div class="setting-label">Claim Moments</div>
                         <div class="setting-description">Claim channel moments</div>
                     </div>
-                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="claimMoments" data-prefix="${prefix}" ${checkboxAttrs('claimMoments', settings.claimMoments)}>
+                    <input type="checkbox" class="w-5 h-5 accent-purple-600" data-field="claimMoments" data-prefix="${prefix}" ${checkboxAttrs('claimMoments', settings.claimMoments)}>
                 </div>
                 <div class="setting-row">
                     <div>
                         <div class="setting-label">Watch Streak</div>
                         <div class="setting-description">Maintain watch streak bonus</div>
                     </div>
-                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="watchStreak" data-prefix="${prefix}" ${checkboxAttrs('watchStreak', settings.watchStreak)}>
+                    <input type="checkbox" class="w-5 h-5 accent-purple-600" data-field="watchStreak" data-prefix="${prefix}" ${checkboxAttrs('watchStreak', settings.watchStreak)}>
                 </div>
                 <div class="setting-row">
                     <div>
                         <div class="setting-label">Community Goals</div>
                         <div class="setting-description">Contribute to community goals</div>
                     </div>
-                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="communityGoals" data-prefix="${prefix}" ${checkboxAttrs('communityGoals', settings.communityGoals)}>
+                    <input type="checkbox" class="w-5 h-5 accent-purple-600" data-field="communityGoals" data-prefix="${prefix}" ${checkboxAttrs('communityGoals', settings.communityGoals)}>
                 </div>
                 <div class="setting-row">
                     <div>
@@ -417,7 +417,7 @@
                     </select>
                 </div>
                 
-                <h4 class="text-twitch font-medium mt-6 mb-4 text-sm">Betting Settings</h4>
+                <h4 class="text-purple-500 font-medium mt-6 mb-4 text-sm">Betting Settings</h4>
                 
                 <div class="setting-row">
                     <div>
@@ -461,7 +461,7 @@
                         <div class="setting-label">Stealth Mode</div>
                         <div class="setting-description">Bet slightly less than top predictor</div>
                     </div>
-                    <input type="checkbox" class="w-5 h-5 accent-twitch" data-field="bet.stealthMode" data-prefix="${prefix}" ${checkboxAttrs('stealthMode', bet.stealthMode)}>
+                    <input type="checkbox" class="w-5 h-5 accent-purple-600" data-field="bet.stealthMode" data-prefix="${prefix}" ${checkboxAttrs('stealthMode', bet.stealthMode)}>
                 </div>
                 <div class="setting-row">
                     <div>
@@ -718,6 +718,17 @@
         } catch (error) {
             showToast('Failed to reset settings', 'error');
         }
+    });
+
+    // Persist details panel state
+    document.querySelectorAll('details.details-panel').forEach(details => {
+        const key = 'details_' + details.id;
+        if (localStorage.getItem(key) === 'open') {
+            details.open = true;
+        }
+        details.addEventListener('toggle', () => {
+            localStorage.setItem(key, details.open ? 'open' : 'closed');
+        });
     });
 
     loadSettings();

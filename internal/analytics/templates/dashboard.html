@@ -5,16 +5,16 @@
 
 <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
     <article class="stat-card">
-        <h2 class="stat-value">{{.TotalPoints}}</h2>
-        <p class="text-twitch-muted mt-2">Total Points</p>
+        <h2 class="text-3xl font-bold text-purple-500">{{.TotalPoints}}</h2>
+        <p class="text-neutral-400 mt-2">Total Points</p>
     </article>
     <article class="stat-card">
-        <h2 class="stat-value">{{.StreamerCount}}</h2>
-        <p class="text-twitch-muted mt-2">Streamers</p>
+        <h2 class="text-3xl font-bold text-purple-500">{{.StreamerCount}}</h2>
+        <p class="text-neutral-400 mt-2">Streamers</p>
     </article>
     <article class="stat-card">
-        <h2 class="stat-value">{{.PointsToday}}</h2>
-        <p class="text-twitch-muted mt-2">Points Today</p>
+        <h2 class="text-3xl font-bold text-purple-500">{{.PointsToday}}</h2>
+        <p class="text-neutral-400 mt-2">Points Today</p>
     </article>
 </section>
 
@@ -23,7 +23,7 @@
     hx-trigger="load, every {{.RefreshMinutes}}m"
     hx-swap="innerHTML"
 >
-    <div class="animate-pulse-loading text-twitch-muted">Loading streamers...</div>
+    <div class="animate-pulse text-neutral-400">Loading streamers...</div>
 </section>
 {{end}}
 
