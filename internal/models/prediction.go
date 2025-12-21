@@ -29,16 +29,16 @@ type PredictionResult struct {
 }
 
 type EventPrediction struct {
-	Streamer                  *Streamer
-	EventID                   string
-	Title                     string
-	CreatedAt                 time.Time
-	PredictionWindowSeconds   float64
-	Status                    PredictionStatus
-	Result                    PredictionResult
-	BetConfirmed              bool
-	BetPlaced                 bool
-	Bet                       *Bet
+	Streamer                *Streamer
+	EventID                 string
+	Title                   string
+	CreatedAt               time.Time
+	PredictionWindowSeconds float64
+	Status                  PredictionStatus
+	Result                  PredictionResult
+	BetConfirmed            bool
+	BetPlaced               bool
+	Bet                     *Bet
 }
 
 func NewEventPrediction(

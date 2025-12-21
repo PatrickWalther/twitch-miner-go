@@ -25,6 +25,18 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            padding: 0.75rem 1.5rem !important;
+            min-height: 56px;
+        }
+        
+        nav ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        nav ul li {
+            padding: 0 0.75rem;
         }
         
         .brand {
@@ -205,11 +217,42 @@
             padding: 0.5rem 0.75rem;
             border-radius: 0.25rem;
             transition: color 0.2s, background-color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid #303033;
         }
         
         .nav-link:hover {
             color: var(--twitch-purple) !important;
-            background-color: rgba(145, 70, 255, 0.1);
+            background-color: rgba(145, 70, 255, 0.15);
+            border-color: var(--twitch-purple);
+        }
+        
+        .nav-link svg {
+            width: 1rem;
+            height: 1rem;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+            flex-shrink: 0;
+        }
+        
+        .nav-user {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #adadb8;
+            font-size: 0.875rem;
+        }
+        
+        .nav-user svg {
+            width: 1rem;
+            height: 1rem;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
         }
         
         .add-streamer-row {
@@ -281,11 +324,6 @@
         select.setting-input {
             width: auto;
             min-width: 180px;
-        }
-        
-        .setting-input[type="checkbox"] {
-            width: auto;
-            min-width: auto;
         }
         
         .priority-list {
@@ -540,22 +578,37 @@
         </div>
     </div>
 
-    <nav class="container-fluid">
+    <nav>
         <ul>
             <li><a href="/" class="brand">⚡ Twitch Points Miner</a></li>
         </ul>
         <ul>
-            <li><a href="/" class="nav-link">Dashboard</a></li>
-            <li><a href="/settings" class="nav-link">Settings</a></li>
-            <li><small>User: {{.Username}}</small></li>
+            <li><a href="/" class="nav-link">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                Dashboard
+            </a></li>
+            {{if .DiscordEnabled}}<li><a href="/notifications" class="nav-link">
+                <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                Notifications
+            </a></li>{{end}}
+            <li><a href="/settings" class="nav-link">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                Settings
+            </a></li>
+        </ul>
+        <ul>
+            <li><span class="nav-user">
+                <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                {{.Username}}
+            </span></li>
         </ul>
     </nav>
     
-    <main class="container">
+    <main class="container" style="max-width: 1200px;">
         {{block "content" .}}{{end}}
     </main>
     
-    <footer class="container" style="display: flex; justify-content: space-between; align-items: center;">
+    <footer class="container" style="max-width: 1200px; display: flex; justify-content: space-between; align-items: center;">
         <small style="color: #adadb8;">
             Auto-refresh: {{.RefreshMinutes}} min | 
             <span hx-get="/api/status" hx-trigger="every 30s" hx-swap="innerHTML">
@@ -583,8 +636,15 @@
             function updateStatus(status) {
                 if (status.status === 'running') {
                     overlay.classList.add('hidden');
+                    const reloadKey = 'miner_loaded_' + window.location.pathname;
+                    if (!sessionStorage.getItem(reloadKey)) {
+                        sessionStorage.setItem(reloadKey, 'true');
+                        window.location.reload();
+                    }
                     return;
                 }
+                
+                sessionStorage.removeItem('miner_loaded_' + window.location.pathname);
                 
                 overlay.classList.remove('hidden');
                 
@@ -631,18 +691,37 @@
                 .then(updateStatus)
                 .catch(() => {});
             
-            const evtSource = new EventSource('/api/miner-status/stream');
-            evtSource.onmessage = function(event) {
-                try {
-                    const status = JSON.parse(event.data);
-                    updateStatus(status);
-                } catch (e) {}
-            };
-            evtSource.onerror = function() {
-                setTimeout(() => {
-                    overlay.classList.add('hidden');
-                }, 5000);
-            };
+            let evtSource = null;
+            
+            function connectSSE() {
+                if (evtSource) return;
+                evtSource = new EventSource('/api/miner-status/stream');
+                evtSource.onmessage = function(event) {
+                    try {
+                        const status = JSON.parse(event.data);
+                        updateStatus(status);
+                    } catch (e) {}
+                };
+                evtSource.onerror = function() {
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                    }, 5000);
+                };
+            }
+            
+            function disconnectSSE() {
+                if (evtSource) {
+                    evtSource.close();
+                    evtSource = null;
+                }
+            }
+            
+            // Connect on page load
+            connectSSE();
+            
+            // Close SSE connection when navigating away
+            window.addEventListener('pagehide', disconnectSSE);
+            window.addEventListener('beforeunload', disconnectSSE);
         })();
     </script>
 </body>

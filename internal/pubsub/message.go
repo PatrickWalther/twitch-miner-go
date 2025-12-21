@@ -6,10 +6,10 @@ import (
 )
 
 type WSMessage struct {
-	Type  string      `json:"type"`
-	Nonce string      `json:"nonce,omitempty"`
-	Data  *WSData     `json:"data,omitempty"`
-	Error string      `json:"error,omitempty"`
+	Type  string  `json:"type"`
+	Nonce string  `json:"nonce,omitempty"`
+	Data  *WSData `json:"data,omitempty"`
+	Error string  `json:"error,omitempty"`
 }
 
 type WSData struct {

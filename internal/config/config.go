@@ -28,6 +28,7 @@ type Config struct {
 	RateLimits          RateLimitSettings       `json:"rateLimits"`
 	Logger              LoggerSettings          `json:"logger"`
 	Analytics           AnalyticsSettings       `json:"analytics"`
+	Discord             DiscordSettings         `json:"discord"`
 }
 
 type StreamerConfig struct {
@@ -36,12 +37,12 @@ type StreamerConfig struct {
 }
 
 type RateLimitSettings struct {
-	WebsocketPingInterval  int     `json:"websocketPingInterval"`
-	CampaignSyncInterval   int     `json:"campaignSyncInterval"`
-	MinuteWatchedInterval  int     `json:"minuteWatchedInterval"`
-	RequestDelay           float64 `json:"requestDelay"`
-	ReconnectDelay         int     `json:"reconnectDelay"`
-	StreamCheckInterval    int     `json:"streamCheckInterval"`
+	WebsocketPingInterval int     `json:"websocketPingInterval"`
+	CampaignSyncInterval  int     `json:"campaignSyncInterval"`
+	MinuteWatchedInterval int     `json:"minuteWatchedInterval"`
+	RequestDelay          float64 `json:"requestDelay"`
+	ReconnectDelay        int     `json:"reconnectDelay"`
+	StreamCheckInterval   int     `json:"streamCheckInterval"`
 }
 
 type LoggerSettings struct {
@@ -62,6 +63,14 @@ type AnalyticsSettings struct {
 	EnableChatLogs bool   `json:"enableChatLogs"`
 }
 
+// DiscordSettings contains Discord integration configuration.
+// Only connection settings are stored in config; notification rules are in the database.
+type DiscordSettings struct {
+	Enabled  bool   `json:"enabled"`
+	BotToken string `json:"botToken"`
+	GuildID  string `json:"guildId"`
+}
+
 func DefaultConfig() Config {
 	return Config{
 		ClaimDropsOnStartup: false,
@@ -71,17 +80,26 @@ func DefaultConfig() Config {
 		RateLimits:          DefaultRateLimitSettings(),
 		Logger:              DefaultLoggerSettings(),
 		Analytics:           DefaultAnalyticsSettings(),
+		Discord:             DefaultDiscordSettings(),
+	}
+}
+
+func DefaultDiscordSettings() DiscordSettings {
+	return DiscordSettings{
+		Enabled:  false,
+		BotToken: "",
+		GuildID:  "",
 	}
 }
 
 func DefaultRateLimitSettings() RateLimitSettings {
 	return RateLimitSettings{
-		WebsocketPingInterval:  27,
-		CampaignSyncInterval:   60,
-		MinuteWatchedInterval:  60,
-		RequestDelay:           0.5,
-		ReconnectDelay:         60,
-		StreamCheckInterval:    600,
+		WebsocketPingInterval: 27,
+		CampaignSyncInterval:  60,
+		MinuteWatchedInterval: 60,
+		RequestDelay:          0.5,
+		ReconnectDelay:        60,
+		StreamCheckInterval:   600,
 	}
 }
 

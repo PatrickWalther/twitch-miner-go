@@ -1,13 +1,13 @@
 package analytics
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,7 +15,9 @@ import (
 	"time"
 
 	"github.com/PatrickWalther/twitch-miner-go/internal/config"
+	"github.com/PatrickWalther/twitch-miner-go/internal/database"
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
+	"github.com/PatrickWalther/twitch-miner-go/internal/notifications"
 	"github.com/PatrickWalther/twitch-miner-go/internal/settings"
 	"github.com/PatrickWalther/twitch-miner-go/internal/version"
 )
@@ -24,27 +26,29 @@ import (
 var templatesFS embed.FS
 
 type AnalyticsServer struct {
-	host      string
-	port      int
-	refresh   int
-	daysAgo   int
-	username  string
-	streamers []*models.Streamer
+	host           string
+	port           int
+	refresh        int
+	daysAgo        int
+	username       string
+	basePath       string
+	streamers      []*models.Streamer
+	discordEnabled bool
 
-	repo             Repository
-	server           *http.Server
-	templates        map[string]*template.Template
-	settingsProvider settings.SettingsProvider
-	onSettingsUpdate settings.SettingsUpdateCallback
-	status           *StatusBroadcaster
-	ready            bool
-	mu               sync.RWMutex
+	db                  *database.DB
+	repo                Repository
+	server              *http.Server
+	templates           map[string]*template.Template
+	settingsProvider    settings.SettingsProvider
+	onSettingsUpdate    settings.SettingsUpdateCallback
+	notificationManager *notifications.Manager
+	status              *StatusBroadcaster
+	ready               bool
+	mu                  sync.RWMutex
 }
 
-func NewAnalyticsServer(settings config.AnalyticsSettings, username string, streamers []*models.Streamer) *AnalyticsServer {
-	basePath := filepath.Join("analytics", username)
-
-	repo, err := NewSQLiteRepository(basePath)
+func NewAnalyticsServer(analyticsSettings config.AnalyticsSettings, username string, basePath string, db *database.DB, streamers []*models.Streamer) *AnalyticsServer {
+	repo, err := NewSQLiteRepository(db, basePath)
 	if err != nil {
 		slog.Error("Failed to create analytics repository", "error", err)
 		return nil
@@ -52,53 +56,7 @@ func NewAnalyticsServer(settings config.AnalyticsSettings, username string, stre
 
 	templates := make(map[string]*template.Template)
 
-	pages := []string{"dashboard.html", "streamer.html", "settings.html"}
-	for _, page := range pages {
-		tmpl, err := template.ParseFS(templatesFS,
-			"templates/base.html",
-			"templates/"+page,
-			"templates/partials/*.html",
-		)
-		if err != nil {
-			slog.Error("Failed to parse template", "page", page, "error", err)
-			continue
-		}
-		templates[page] = tmpl
-	}
-
-	partials, err := template.ParseFS(templatesFS, "templates/partials/*.html")
-	if err != nil {
-		slog.Error("Failed to parse partials", "error", err)
-	} else {
-		templates["partials"] = partials
-	}
-
-	return &AnalyticsServer{
-		host:      settings.Host,
-		port:      settings.Port,
-		refresh:   settings.Refresh,
-		daysAgo:   settings.DaysAgo,
-		username:  username,
-		streamers: streamers,
-		repo:      repo,
-		templates: templates,
-		status:    NewStatusBroadcaster(),
-		ready:     len(streamers) > 0,
-	}
-}
-
-func NewAnalyticsServerEarly(analyticsSettings config.AnalyticsSettings, username string) *AnalyticsServer {
-	basePath := filepath.Join("analytics", username)
-
-	repo, err := NewSQLiteRepository(basePath)
-	if err != nil {
-		slog.Error("Failed to create analytics repository", "error", err)
-		return nil
-	}
-
-	templates := make(map[string]*template.Template)
-
-	pages := []string{"dashboard.html", "streamer.html", "settings.html"}
+	pages := []string{"dashboard.html", "streamer.html", "settings.html", "notifications.html"}
 	for _, page := range pages {
 		tmpl, err := template.ParseFS(templatesFS,
 			"templates/base.html",
@@ -125,7 +83,55 @@ func NewAnalyticsServerEarly(analyticsSettings config.AnalyticsSettings, usernam
 		refresh:   analyticsSettings.Refresh,
 		daysAgo:   analyticsSettings.DaysAgo,
 		username:  username,
+		basePath:  basePath,
+		streamers: streamers,
+		db:        db,
+		repo:      repo,
+		templates: templates,
+		status:    NewStatusBroadcaster(),
+		ready:     len(streamers) > 0,
+	}
+}
+
+func NewAnalyticsServerEarly(analyticsSettings config.AnalyticsSettings, username string, basePath string, db *database.DB) *AnalyticsServer {
+	repo, err := NewSQLiteRepository(db, basePath)
+	if err != nil {
+		slog.Error("Failed to create analytics repository", "error", err)
+		return nil
+	}
+
+	templates := make(map[string]*template.Template)
+
+	pages := []string{"dashboard.html", "streamer.html", "settings.html", "notifications.html"}
+	for _, page := range pages {
+		tmpl, err := template.ParseFS(templatesFS,
+			"templates/base.html",
+			"templates/"+page,
+			"templates/partials/*.html",
+		)
+		if err != nil {
+			slog.Error("Failed to parse template", "page", page, "error", err)
+			continue
+		}
+		templates[page] = tmpl
+	}
+
+	partials, err := template.ParseFS(templatesFS, "templates/partials/*.html")
+	if err != nil {
+		slog.Error("Failed to parse partials", "error", err)
+	} else {
+		templates["partials"] = partials
+	}
+
+	return &AnalyticsServer{
+		host:      analyticsSettings.Host,
+		port:      analyticsSettings.Port,
+		refresh:   analyticsSettings.Refresh,
+		daysAgo:   analyticsSettings.DaysAgo,
+		username:  username,
+		basePath:  basePath,
 		streamers: nil,
+		db:        db,
 		repo:      repo,
 		templates: templates,
 		status:    NewStatusBroadcaster(),
@@ -144,12 +150,32 @@ func (s *AnalyticsServer) GetStatusBroadcaster() *StatusBroadcaster {
 	return s.status
 }
 
+func (s *AnalyticsServer) GetDB() *database.DB {
+	return s.db
+}
+
+func (s *AnalyticsServer) GetBasePath() string {
+	return s.basePath
+}
+
 func (s *AnalyticsServer) SetSettingsProvider(provider settings.SettingsProvider) {
 	s.settingsProvider = provider
 }
 
 func (s *AnalyticsServer) SetSettingsUpdateCallback(callback settings.SettingsUpdateCallback) {
 	s.onSettingsUpdate = callback
+}
+
+func (s *AnalyticsServer) SetNotificationManager(mgr *notifications.Manager) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.notificationManager = mgr
+}
+
+func (s *AnalyticsServer) SetDiscordEnabled(enabled bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.discordEnabled = enabled
 }
 
 func (s *AnalyticsServer) Start() {
@@ -169,6 +195,13 @@ func (s *AnalyticsServer) Start() {
 	mux.HandleFunc("/json/", s.handleJSON)
 	mux.HandleFunc("/json_all", s.handleJSONAll)
 	mux.HandleFunc("/api/chat/", s.handleAPIChatMessages)
+
+	mux.HandleFunc("/notifications", s.handleNotificationsPage)
+	mux.HandleFunc("/api/notifications/config", s.handleAPINotificationsConfig)
+	mux.HandleFunc("/api/notifications/channels", s.handleAPINotificationsChannels)
+	mux.HandleFunc("/api/notifications/points", s.handleAPINotificationsPoints)
+	mux.HandleFunc("/api/notifications/points/", s.handleAPINotificationsPointsDelete)
+	mux.HandleFunc("/api/notifications/test", s.handleAPINotificationsTest)
 
 	addr := fmt.Sprintf("%s:%d", s.host, s.port)
 	s.server = &http.Server{
@@ -234,6 +267,7 @@ func (s *AnalyticsServer) handleDashboard(w http.ResponseWriter, r *http.Request
 
 	s.mu.RLock()
 	refresh := s.refresh
+	discordEnabled := s.discordEnabled
 	s.mu.RUnlock()
 
 	data := DashboardData{
@@ -243,6 +277,7 @@ func (s *AnalyticsServer) handleDashboard(w http.ResponseWriter, r *http.Request
 		TotalPoints:    formatNumber(totalPoints),
 		StreamerCount:  len(streamers),
 		PointsToday:    formatNumber(pointsToday),
+		DiscordEnabled: discordEnabled,
 	}
 
 	s.renderPage(w, "dashboard.html", data)
@@ -269,6 +304,7 @@ func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Requ
 	s.mu.RLock()
 	refresh := s.refresh
 	daysAgo := s.daysAgo
+	discordEnabled := s.discordEnabled
 	s.mu.RUnlock()
 
 	startTS := time.Now().AddDate(0, 0, -daysAgo).UnixMilli()
@@ -293,9 +329,10 @@ func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Requ
 			Points:          currentPoints,
 			PointsFormatted: formatNumber(currentPoints),
 		},
-		PointsGained: formatNumber(pointsGained),
-		DataPoints:   len(data.Series),
-		DaysAgo:      daysAgo,
+		PointsGained:   formatNumber(pointsGained),
+		DataPoints:     len(data.Series),
+		DaysAgo:        daysAgo,
+		DiscordEnabled: discordEnabled,
 	}
 
 	s.renderPage(w, "streamer.html", pageData)
@@ -408,12 +445,14 @@ func (s *AnalyticsServer) handleAPIMinerStatusStream(w http.ResponseWriter, r *h
 func (s *AnalyticsServer) handleSettingsPage(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	refresh := s.refresh
+	discordEnabled := s.discordEnabled
 	s.mu.RUnlock()
 
 	data := SettingsPageData{
 		Username:       s.username,
 		RefreshMinutes: refresh,
 		Version:        version.Version,
+		DiscordEnabled: discordEnabled,
 	}
 	s.renderPage(w, "settings.html", data)
 }
@@ -712,4 +751,199 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%dh", totalSeconds/3600)
 	}
 	return fmt.Sprintf("%dd", totalSeconds/86400)
+}
+
+func (s *AnalyticsServer) handleNotificationsPage(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	refresh := s.refresh
+	discordEnabled := s.discordEnabled
+	notifMgr := s.notificationManager
+	s.mu.RUnlock()
+
+	if !discordEnabled {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+
+	var streamers []string
+	for _, st := range s.streamers {
+		streamers = append(streamers, st.Username)
+	}
+
+	configValid := true
+	configError := ""
+	if notifMgr != nil {
+		configValid, configError = notifMgr.IsConfigValid()
+	}
+
+	data := NotificationsPageData{
+		Username:       s.username,
+		RefreshMinutes: refresh,
+		Version:        version.Version,
+		DiscordEnabled: discordEnabled,
+		ConfigValid:    configValid,
+		ConfigError:    configError,
+		Streamers:      streamers,
+	}
+
+	s.renderPage(w, "notifications.html", data)
+}
+
+func (s *AnalyticsServer) handleAPINotificationsConfig(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	notifMgr := s.notificationManager
+	s.mu.RUnlock()
+
+	if notifMgr == nil {
+		http.Error(w, "Notifications not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	if r.Method == http.MethodGet {
+		cfg, err := notifMgr.GetConfig()
+		if err != nil {
+			http.Error(w, "Failed to get config", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(cfg)
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		var cfg notifications.NotificationConfig
+		if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err := notifMgr.SaveConfig(&cfg); err != nil {
+			http.Error(w, "Failed to save config", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		return
+	}
+
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+}
+
+func (s *AnalyticsServer) handleAPINotificationsChannels(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	notifMgr := s.notificationManager
+	s.mu.RUnlock()
+
+	if notifMgr == nil {
+		http.Error(w, "Notifications not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	forceRefresh := r.URL.Query().Get("refresh") == "1"
+	channels, err := notifMgr.GetDiscordChannels(context.Background(), forceRefresh)
+	if err != nil {
+		http.Error(w, "Failed to get channels: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(channels)
+}
+
+func (s *AnalyticsServer) handleAPINotificationsPoints(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	notifMgr := s.notificationManager
+	s.mu.RUnlock()
+
+	if notifMgr == nil {
+		http.Error(w, "Notifications not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	if r.Method == http.MethodGet {
+		rules, err := notifMgr.GetPointRules()
+		if err != nil {
+			http.Error(w, "Failed to get rules", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(rules)
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		var rule notifications.PointRule
+		if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
+			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err := notifMgr.AddPointRule(&rule); err != nil {
+			http.Error(w, "Failed to add rule", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(rule)
+		return
+	}
+
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+}
+
+func (s *AnalyticsServer) handleAPINotificationsPointsDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	s.mu.RLock()
+	notifMgr := s.notificationManager
+	s.mu.RUnlock()
+
+	if notifMgr == nil {
+		http.Error(w, "Notifications not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/notifications/points/")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := notifMgr.DeletePointRule(id); err != nil {
+		http.Error(w, "Failed to delete rule", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+func (s *AnalyticsServer) handleAPINotificationsTest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	s.mu.RLock()
+	notifMgr := s.notificationManager
+	s.mu.RUnlock()
+
+	if notifMgr == nil {
+		http.Error(w, "Notifications not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	sent, err := notifMgr.SendTestNotifications()
+	if err != nil {
+		http.Error(w, "Failed to send test notifications: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]int{"sent": sent})
 }

@@ -1,0 +1,773 @@
+{{define "title"}}Notifications - Twitch Points Miner{{end}}
+
+{{define "content"}}
+<h1>Notifications</h1>
+
+{{if not .ConfigValid}}
+<article style="border-color: #eb0400; background: rgba(235, 4, 0, 0.1);">
+    <header style="background: none; border: none; padding: 0;">
+        <strong style="color: #eb0400;">⚠️ Configuration Error</strong>
+    </header>
+    <p>{{.ConfigError}}</p>
+    <p><a href="/settings">Go to Settings</a> to configure Discord integration.</p>
+</article>
+{{end}}
+
+<div id="notifications-app" class="{{if not .ConfigValid}}disabled-overlay{{end}}">
+    <details open>
+        <summary>Discord Channels</summary>
+        <p><small>Select which Discord channel each notification type should be sent to.</small></p>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Mentions Channel</div>
+                <div class="setting-description">Channel for chat mention notifications</div>
+            </div>
+            <div class="channel-select-wrapper">
+                <button type="button" class="channel-reload-btn" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                </button>
+                <select class="setting-input channel-select" id="mentions-channel" {{if not .ConfigValid}}disabled{{end}}>
+                    <option value="">-- Select Channel --</option>
+                </select>
+                <div class="channel-loading"></div>
+            </div>
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Points Channel</div>
+                <div class="setting-description">Channel for point threshold notifications</div>
+            </div>
+            <div class="channel-select-wrapper">
+                <button type="button" class="channel-reload-btn" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                </button>
+                <select class="setting-input channel-select" id="points-channel" {{if not .ConfigValid}}disabled{{end}}>
+                    <option value="">-- Select Channel --</option>
+                </select>
+                <div class="channel-loading"></div>
+            </div>
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Online Channel</div>
+                <div class="setting-description">Channel for streamer online notifications</div>
+            </div>
+            <div class="channel-select-wrapper">
+                <button type="button" class="channel-reload-btn" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                </button>
+                <select class="setting-input channel-select" id="online-channel" {{if not .ConfigValid}}disabled{{end}}>
+                    <option value="">-- Select Channel --</option>
+                </select>
+                <div class="channel-loading"></div>
+            </div>
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Offline Channel</div>
+                <div class="setting-description">Channel for streamer offline notifications</div>
+            </div>
+            <div class="channel-select-wrapper">
+                <button type="button" class="channel-reload-btn" onclick="reloadChannels()" title="Reload channels" {{if not .ConfigValid}}disabled{{end}}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                </button>
+                <select class="setting-input channel-select" id="offline-channel" {{if not .ConfigValid}}disabled{{end}}>
+                    <option value="">-- Select Channel --</option>
+                </select>
+                <div class="channel-loading"></div>
+            </div>
+        </div>
+    </details>
+
+    <details open>
+        <summary>Chat Mentions</summary>
+        <p><small>Get notified when someone mentions you in chat.</small></p>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Enable Mention Notifications</div>
+                <div class="setting-description">Receive notifications when mentioned in chat</div>
+            </div>
+            <input type="checkbox" role="switch" id="mentions-enabled" {{if not .ConfigValid}}disabled{{end}}>
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">All Chats</div>
+                <div class="setting-description">Notify for mentions in all tracked streams</div>
+            </div>
+            <input type="checkbox" role="switch" id="mentions-all-chats" {{if not .ConfigValid}}disabled{{end}}>
+        </div>
+        
+        <div class="setting-row streamer-select-row" id="mentions-streamers-row" style="display: none;">
+            <div>
+                <div class="setting-label">Selected Streamers</div>
+                <div class="setting-description">Only notify for mentions in these chats</div>
+            </div>
+            <div class="streamer-checkboxes" id="mentions-streamers">
+                {{range .Streamers}}
+                <label class="streamer-checkbox">
+                    <input type="checkbox" value="{{.}}" {{if not $.ConfigValid}}disabled{{end}}>
+                    {{.}}
+                </label>
+                {{end}}
+            </div>
+        </div>
+    </details>
+
+    <details open>
+        <summary>Point Goals</summary>
+        <p><small>Get notified when you reach a point threshold in a channel.</small></p>
+        
+        <div class="add-rule-row">
+            <select id="point-rule-streamer" {{if not .ConfigValid}}disabled{{end}}>
+                {{range .Streamers}}
+                <option value="{{.}}">{{.}}</option>
+                {{end}}
+            </select>
+            <input type="number" id="point-rule-threshold" placeholder="Point threshold" min="1" {{if not .ConfigValid}}disabled{{end}}>
+            <div class="inline-switch">
+                <input type="checkbox" role="switch" id="point-rule-delete" {{if not .ConfigValid}}disabled{{end}}>
+                <span>Delete after trigger</span>
+            </div>
+            <button type="button" id="add-point-rule-btn" class="secondary" {{if not .ConfigValid}}disabled{{end}}>Add Rule</button>
+        </div>
+        
+        <table id="point-rules-table">
+            <thead>
+                <tr>
+                    <th>Streamer</th>
+                    <th>Threshold</th>
+                    <th>One-time</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="point-rules-body">
+            </tbody>
+        </table>
+    </details>
+
+    <details open>
+        <summary>Stream Status</summary>
+        <p><small>Get notified when streamers go online or offline.</small></p>
+        
+        <h4 class="subsection-title">Online Notifications</h4>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Enable Online Notifications</div>
+                <div class="setting-description">Receive notifications when streamers go live</div>
+            </div>
+            <input type="checkbox" role="switch" id="online-enabled" {{if not .ConfigValid}}disabled{{end}}>
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">All Streamers</div>
+                <div class="setting-description">Notify for all tracked streamers</div>
+            </div>
+            <input type="checkbox" role="switch" id="online-all-streamers" {{if not .ConfigValid}}disabled{{end}}>
+        </div>
+        
+        <div class="setting-row streamer-select-row" id="online-streamers-row" style="display: none;">
+            <div>
+                <div class="setting-label">Selected Streamers</div>
+                <div class="setting-description">Only notify for these streamers</div>
+            </div>
+            <div class="streamer-checkboxes" id="online-streamers">
+                {{range .Streamers}}
+                <label class="streamer-checkbox">
+                    <input type="checkbox" value="{{.}}" {{if not $.ConfigValid}}disabled{{end}}>
+                    {{.}}
+                </label>
+                {{end}}
+            </div>
+        </div>
+        
+        <h4 class="subsection-title">Offline Notifications</h4>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Enable Offline Notifications</div>
+                <div class="setting-description">Receive notifications when streamers go offline</div>
+            </div>
+            <input type="checkbox" role="switch" id="offline-enabled" {{if not .ConfigValid}}disabled{{end}}>
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">All Streamers</div>
+                <div class="setting-description">Notify for all tracked streamers</div>
+            </div>
+            <input type="checkbox" role="switch" id="offline-all-streamers" {{if not .ConfigValid}}disabled{{end}}>
+        </div>
+        
+        <div class="setting-row streamer-select-row" id="offline-streamers-row" style="display: none;">
+            <div>
+                <div class="setting-label">Selected Streamers</div>
+                <div class="setting-description">Only notify for these streamers</div>
+            </div>
+            <div class="streamer-checkboxes" id="offline-streamers">
+                {{range .Streamers}}
+                <label class="streamer-checkbox">
+                    <input type="checkbox" value="{{.}}" {{if not $.ConfigValid}}disabled{{end}}>
+                    {{.}}
+                </label>
+                {{end}}
+            </div>
+        </div>
+    </details>
+
+    <div class="button-row">
+        <button type="button" class="secondary" id="test-notifications-btn" onclick="testNotifications()" {{if not .ConfigValid}}disabled{{end}}>Test All Notifications</button>
+        <button type="button" id="save-notifications-btn" {{if not .ConfigValid}}disabled{{end}}>Save Settings</button>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+{{end}}
+
+{{define "scripts"}}
+<style>
+    .disabled-overlay {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+    
+    .add-rule-row {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .add-rule-row input[type="number"] {
+        width: 200px;
+        min-width: 200px;
+        margin-bottom: 0;
+    }
+    
+    .add-rule-row select {
+        width: 220px;
+        min-width: 220px;
+        margin-bottom: 0;
+    }
+    
+    .channel-select {
+        min-width: 280px !important;
+    }
+    
+    .inline-switch {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #adadb8;
+        font-size: 0.875rem;
+        white-space: nowrap;
+    }
+    
+    .inline-switch input {
+        margin: 0;
+    }
+    
+    .channel-select-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .channel-select-wrapper select {
+        margin-bottom: 0;
+    }
+    
+    .channel-reload-btn {
+        background: none;
+        border: 1px solid #303033;
+        border-radius: 0.25rem;
+        color: #adadb8;
+        cursor: pointer;
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: color 0.2s, border-color 0.2s;
+    }
+    
+    .channel-reload-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .channel-reload-btn:hover {
+        color: var(--twitch-purple);
+        border-color: var(--twitch-purple);
+    }
+    
+    .channel-reload-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .channel-reload-btn.spinning svg {
+        animation: spin 1s linear infinite;
+    }
+    
+    .channel-loading {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #303033;
+        border-top-color: var(--twitch-purple);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    .channel-error {
+        color: #eb0400;
+        font-size: 0.75rem;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .add-rule-row button {
+        margin-bottom: 0;
+    }
+    
+    .inline-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #adadb8;
+        font-size: 0.875rem;
+        white-space: nowrap;
+    }
+    
+    .inline-checkbox input {
+        margin: 0;
+        width: auto;
+    }
+    
+    #point-rules-table {
+        width: 100%;
+        margin-top: 1rem;
+    }
+    
+    #point-rules-table th {
+        text-align: left;
+        padding: 0.5rem;
+        border-bottom: 1px solid #303033;
+        color: #adadb8;
+        font-size: 0.875rem;
+    }
+    
+    #point-rules-table td {
+        padding: 0.5rem;
+        border-bottom: 1px solid #303033;
+    }
+    
+    #point-rules-table .status-triggered {
+        color: #36b535;
+    }
+    
+    #point-rules-table .status-waiting {
+        color: #adadb8;
+    }
+    
+    .delete-rule-btn {
+        background: none;
+        border: none;
+        color: #adadb8;
+        cursor: pointer;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+    
+    .delete-rule-btn:hover {
+        color: #eb0400;
+        background: rgba(235, 4, 0, 0.1);
+    }
+    
+    .streamer-checkboxes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .streamer-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: #0e0e10;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        border: 1px solid #303033;
+        font-size: 0.875rem;
+        color: #efeff1;
+    }
+    
+    .streamer-checkbox input {
+        margin: 0;
+        width: auto;
+    }
+    
+    .streamer-select-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+</style>
+
+<script>
+    let channels = [];
+    let config = null;
+    let pointRules = [];
+    let channelsLoaded = false;
+    const configValid = {{.ConfigValid}};
+
+    function showChannelLoading(show) {
+        document.querySelectorAll('.channel-loading').forEach(el => {
+            el.style.display = show ? 'block' : 'none';
+        });
+    }
+
+    function showChannelError(message) {
+        document.querySelectorAll('.channel-loading').forEach(el => {
+            el.classList.remove('channel-loading');
+            el.classList.add('channel-error');
+            el.textContent = message;
+        });
+    }
+
+    async function reloadChannels() {
+        const buttons = document.querySelectorAll('.channel-reload-btn');
+        buttons.forEach(btn => {
+            btn.classList.add('spinning');
+            btn.disabled = true;
+        });
+        
+        // Clear cache on server by forcing fresh fetch
+        channelsLoaded = false;
+        channels = [];
+        
+        try {
+            await loadChannels(true);
+        } finally {
+            buttons.forEach(btn => {
+                btn.classList.remove('spinning');
+                btn.disabled = false;
+            });
+        }
+    }
+
+    async function loadChannels(forceRefresh = false) {
+        if (!configValid) {
+            showChannelLoading(false);
+            return;
+        }
+        
+        showChannelLoading(true);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        try {
+            const url = forceRefresh ? '/api/notifications/channels?refresh=1' : '/api/notifications/channels';
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+                channels = await response.json();
+                channelsLoaded = true;
+                showChannelLoading(false);
+                populateChannelSelects();
+            } else {
+                showChannelError('Failed to load');
+            }
+        } catch (error) {
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                showChannelError('Timeout');
+            } else {
+                showChannelError('Error');
+            }
+            console.error('Failed to load channels:', error);
+        }
+    }
+
+    function populateChannelSelects() {
+        const selects = document.querySelectorAll('.channel-select');
+        selects.forEach(select => {
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">-- Select Channel --</option>';
+            channels.forEach(ch => {
+                const option = document.createElement('option');
+                option.value = ch.id;
+                option.textContent = '#' + ch.name;
+                select.appendChild(option);
+            });
+            select.value = currentValue;
+        });
+    }
+
+    async function loadConfig() {
+        if (!configValid) return;
+        
+        try {
+            const response = await fetch('/api/notifications/config');
+            if (response.ok) {
+                config = await response.json();
+                applyConfig();
+            }
+        } catch (error) {
+            console.error('Failed to load config:', error);
+        }
+    }
+
+    function applyConfig() {
+        if (!config) return;
+
+        document.getElementById('mentions-channel').value = config.mentionsChannelId || '';
+        document.getElementById('points-channel').value = config.pointsChannelId || '';
+        document.getElementById('online-channel').value = config.onlineChannelId || '';
+        document.getElementById('offline-channel').value = config.offlineChannelId || '';
+
+        document.getElementById('mentions-enabled').checked = config.mentionsEnabled;
+        document.getElementById('mentions-all-chats').checked = config.mentionsAllChats;
+        toggleStreamerSelect('mentions');
+
+        document.getElementById('online-enabled').checked = config.onlineEnabled;
+        document.getElementById('online-all-streamers').checked = config.onlineAllStreamers;
+        toggleStreamerSelect('online');
+
+        document.getElementById('offline-enabled').checked = config.offlineEnabled;
+        document.getElementById('offline-all-streamers').checked = config.offlineAllStreamers;
+        toggleStreamerSelect('offline');
+
+        applyStreamerCheckboxes('mentions', config.mentionsStreamers || []);
+        applyStreamerCheckboxes('online', config.onlineStreamers || []);
+        applyStreamerCheckboxes('offline', config.offlineStreamers || []);
+    }
+
+    function applyStreamerCheckboxes(prefix, selected) {
+        const container = document.getElementById(prefix + '-streamers');
+        if (!container) return;
+        
+        container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = selected.includes(cb.value);
+        });
+    }
+
+    function getSelectedStreamers(prefix) {
+        const container = document.getElementById(prefix + '-streamers');
+        if (!container) return [];
+        
+        const selected = [];
+        container.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+            selected.push(cb.value);
+        });
+        return selected;
+    }
+
+    function toggleStreamerSelect(prefix) {
+        const allCheckbox = document.getElementById(prefix + '-all-chats') || document.getElementById(prefix + '-all-streamers');
+        const row = document.getElementById(prefix + '-streamers-row');
+        if (allCheckbox && row) {
+            row.style.display = allCheckbox.checked ? 'none' : 'flex';
+        }
+    }
+
+    async function loadPointRules() {
+        if (!configValid) return;
+        
+        try {
+            const response = await fetch('/api/notifications/points');
+            if (response.ok) {
+                pointRules = await response.json() || [];
+                renderPointRules();
+            }
+        } catch (error) {
+            console.error('Failed to load point rules:', error);
+        }
+    }
+
+    function renderPointRules() {
+        const tbody = document.getElementById('point-rules-body');
+        tbody.innerHTML = '';
+
+        if (pointRules.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #adadb8;">No point rules configured</td></tr>';
+            return;
+        }
+
+        pointRules.forEach(rule => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${rule.streamer}</td>
+                <td>${formatNumber(rule.threshold)}</td>
+                <td>${rule.deleteOnTrigger ? 'Yes' : 'No'}</td>
+                <td class="${rule.triggered ? 'status-triggered' : 'status-waiting'}">${rule.triggered ? 'Triggered' : 'Waiting'}</td>
+                <td><button class="delete-rule-btn" onclick="deletePointRule(${rule.id})">✕</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function formatNumber(n) {
+        return new Intl.NumberFormat().format(n);
+    }
+
+    async function addPointRule() {
+        const streamer = document.getElementById('point-rule-streamer').value;
+        const threshold = parseInt(document.getElementById('point-rule-threshold').value);
+        const deleteOnTrigger = document.getElementById('point-rule-delete').checked;
+
+        if (!streamer || !threshold || threshold < 1) {
+            showToast('Please enter a valid streamer and threshold', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/notifications/points', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ streamer, threshold, deleteOnTrigger })
+            });
+
+            if (response.ok) {
+                document.getElementById('point-rule-threshold').value = '';
+                document.getElementById('point-rule-delete').checked = false;
+                await loadPointRules();
+                showToast('Point rule added');
+            } else {
+                showToast('Failed to add rule', 'error');
+            }
+        } catch (error) {
+            showToast('Failed to add rule', 'error');
+        }
+    }
+
+    async function deletePointRule(id) {
+        if (!confirm('Delete this point rule?')) return;
+
+        try {
+            const response = await fetch(`/api/notifications/points/${id}`, { method: 'DELETE' });
+            if (response.ok) {
+                await loadPointRules();
+                showToast('Rule deleted');
+            } else {
+                showToast('Failed to delete rule', 'error');
+            }
+        } catch (error) {
+            showToast('Failed to delete rule', 'error');
+        }
+    }
+
+    async function saveConfig() {
+        const newConfig = {
+            mentionsChannelId: document.getElementById('mentions-channel').value,
+            pointsChannelId: document.getElementById('points-channel').value,
+            onlineChannelId: document.getElementById('online-channel').value,
+            offlineChannelId: document.getElementById('offline-channel').value,
+            mentionsEnabled: document.getElementById('mentions-enabled').checked,
+            mentionsAllChats: document.getElementById('mentions-all-chats').checked,
+            mentionsStreamers: getSelectedStreamers('mentions'),
+            onlineEnabled: document.getElementById('online-enabled').checked,
+            onlineAllStreamers: document.getElementById('online-all-streamers').checked,
+            onlineStreamers: getSelectedStreamers('online'),
+            offlineEnabled: document.getElementById('offline-enabled').checked,
+            offlineAllStreamers: document.getElementById('offline-all-streamers').checked,
+            offlineStreamers: getSelectedStreamers('offline')
+        };
+
+        try {
+            const response = await fetch('/api/notifications/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newConfig)
+            });
+
+            if (response.ok) {
+                showToast('Settings saved!');
+            } else {
+                showToast('Failed to save settings', 'error');
+            }
+        } catch (error) {
+            showToast('Failed to save settings', 'error');
+        }
+    }
+
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    async function testNotifications() {
+        const btn = document.getElementById('test-notifications-btn');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+        
+        try {
+            const response = await fetch('/api/notifications/test', { method: 'POST' });
+            if (response.ok) {
+                const result = await response.json();
+                showToast(`Sent ${result.sent} test notifications`);
+            } else {
+                const error = await response.text();
+                showToast('Failed: ' + error, 'error');
+            }
+        } catch (error) {
+            showToast('Failed to send test notifications', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    }
+
+    // Event listeners
+    document.getElementById('mentions-all-chats')?.addEventListener('change', () => toggleStreamerSelect('mentions'));
+    document.getElementById('online-all-streamers')?.addEventListener('change', () => toggleStreamerSelect('online'));
+    document.getElementById('offline-all-streamers')?.addEventListener('change', () => toggleStreamerSelect('offline'));
+    document.getElementById('add-point-rule-btn')?.addEventListener('click', addPointRule);
+    document.getElementById('save-notifications-btn')?.addEventListener('click', saveConfig);
+
+    // Initialize - load config immediately, channels load async in background
+    loadConfig();
+    loadPointRules();
+    loadChannels().then(() => {
+        // Re-apply channel values once channels are loaded
+        if (config && channelsLoaded) {
+            document.getElementById('mentions-channel').value = config.mentionsChannelId || '';
+            document.getElementById('points-channel').value = config.pointsChannelId || '';
+            document.getElementById('online-channel').value = config.onlineChannelId || '';
+            document.getElementById('offline-channel').value = config.offlineChannelId || '';
+        }
+    });
+</script>
+{{end}}

@@ -35,7 +35,7 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /build/twitch-miner-go /twitch-miner-go
 
 # Create data directories (will be mounted as volumes)
-VOLUME ["/config", "/cookies", "/logs", "/analytics"]
+VOLUME ["/config", "/cookies", "/logs", "/database"]
 
 # Working directory
 WORKDIR /

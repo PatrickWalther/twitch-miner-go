@@ -40,6 +40,7 @@ type DashboardData struct {
 	TotalPoints    string
 	StreamerCount  int
 	PointsToday    string
+	DiscordEnabled bool
 }
 
 type StreamerPageData struct {
@@ -50,6 +51,7 @@ type StreamerPageData struct {
 	PointsGained   string
 	DataPoints     int
 	DaysAgo        int
+	DiscordEnabled bool
 }
 
 type StreamerGridData struct {
@@ -80,4 +82,16 @@ type SettingsPageData struct {
 	Username       string
 	RefreshMinutes int
 	Version        string
+	DiscordEnabled bool
+}
+
+// NotificationsPageData contains template data for the notifications page.
+type NotificationsPageData struct {
+	Username       string
+	RefreshMinutes int
+	Version        string
+	DiscordEnabled bool
+	ConfigValid    bool
+	ConfigError    string
+	Streamers      []string
 }

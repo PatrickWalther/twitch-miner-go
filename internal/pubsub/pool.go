@@ -12,16 +12,18 @@ import (
 )
 
 type MessageHandler func(msg *PubSubMessage, streamer *models.Streamer)
+type StatusHandler func(streamer string, online bool)
 
 type WebSocketPool struct {
-	clients    []*WebSocketClient
-	client     *api.TwitchClient
-	streamers  []*models.Streamer
-	authToken  string
-	settings   config.RateLimitSettings
+	clients     []*WebSocketClient
+	client      *api.TwitchClient
+	streamers   []*models.Streamer
+	authToken   string
+	settings    config.RateLimitSettings
 	predictions map[string]*models.EventPrediction
 
-	onMessage MessageHandler
+	onMessage      MessageHandler
+	onStatusChange StatusHandler
 
 	mu sync.RWMutex
 }
@@ -38,6 +40,10 @@ func NewWebSocketPool(twitchClient *api.TwitchClient, authToken string, streamer
 
 func (p *WebSocketPool) SetMessageHandler(handler MessageHandler) {
 	p.onMessage = handler
+}
+
+func (p *WebSocketPool) SetStatusHandler(handler StatusHandler) {
+	p.onStatusChange = handler
 }
 
 func (p *WebSocketPool) Submit(topic Topic) error {
@@ -156,10 +162,17 @@ func (p *WebSocketPool) handleVideoPlayback(msg *PubSubMessage, streamer *models
 		if streamer.GetIsOnline() {
 			streamer.SetOffline()
 			slog.Info("Streamer went offline", "streamer", streamer.Username)
+			if p.onStatusChange != nil {
+				p.onStatusChange(streamer.Username, false)
+			}
 		}
 	case "viewcount":
+		wasOnline := streamer.GetIsOnline()
 		if streamer.StreamUpElapsed() {
 			p.client.CheckStreamerOnline(streamer)
+			if !wasOnline && streamer.GetIsOnline() && p.onStatusChange != nil {
+				p.onStatusChange(streamer.Username, true)
+			}
 		}
 	}
 }
