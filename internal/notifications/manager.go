@@ -387,7 +387,7 @@ func (m *Manager) UpdateDiscordConfig(cfg *config.DiscordSettings) error {
 
 	if !cfg.Enabled {
 		if m.discord != nil {
-			m.discord.Disconnect()
+			_ = m.discord.Disconnect()
 			m.discord = nil
 			slog.Info("Discord notifications disabled")
 		}
@@ -397,7 +397,7 @@ func (m *Manager) UpdateDiscordConfig(cfg *config.DiscordSettings) error {
 	if m.discord == nil {
 		m.discord = NewDiscordProvider(cfg.BotToken, cfg.GuildID)
 	} else {
-		m.discord.Disconnect()
+		_ = m.discord.Disconnect()
 		m.discord.UpdateConfig(cfg.BotToken, cfg.GuildID)
 	}
 

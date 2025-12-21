@@ -162,14 +162,17 @@ func (r *SQLiteRepository) migrateFromOldDB() error {
 
 		result, err := tx.Exec("INSERT INTO streamers (name, created_at) VALUES (?, ?)", name, createdAt)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			continue
 		}
 
 		newStreamerID, _ := result.LastInsertId()
 
 		var oldStreamerID int64
-		oldDB.QueryRow("SELECT id FROM streamers WHERE name = ?", name).Scan(&oldStreamerID)
+		if err := oldDB.QueryRow("SELECT id FROM streamers WHERE name = ?", name).Scan(&oldStreamerID); err != nil {
+			_ = tx.Rollback()
+			continue
+		}
 
 		pointRows, _ := oldDB.Query("SELECT timestamp, points, event_type FROM points WHERE streamer_id = ?", oldStreamerID)
 		if pointRows != nil {
@@ -177,7 +180,7 @@ func (r *SQLiteRepository) migrateFromOldDB() error {
 				var ts, pts int64
 				var eventType sql.NullString
 				if err := pointRows.Scan(&ts, &pts, &eventType); err == nil {
-					tx.Exec("INSERT INTO points (streamer_id, timestamp, points, event_type) VALUES (?, ?, ?, ?)",
+					_, _ = tx.Exec("INSERT INTO points (streamer_id, timestamp, points, event_type) VALUES (?, ?, ?, ?)",
 						newStreamerID, ts, pts, eventType.String)
 				}
 			}
@@ -190,7 +193,7 @@ func (r *SQLiteRepository) migrateFromOldDB() error {
 				var ts int64
 				var text, color string
 				if err := annotationRows.Scan(&ts, &text, &color); err == nil {
-					tx.Exec("INSERT INTO annotations (streamer_id, timestamp, text, color) VALUES (?, ?, ?, ?)",
+					_, _ = tx.Exec("INSERT INTO annotations (streamer_id, timestamp, text, color) VALUES (?, ?, ?, ?)",
 						newStreamerID, ts, text, color)
 				}
 			}
@@ -204,7 +207,7 @@ func (r *SQLiteRepository) migrateFromOldDB() error {
 				var username, displayName, message string
 				var emotes, badges, chatColor sql.NullString
 				if err := chatRows.Scan(&ts, &username, &displayName, &message, &emotes, &badges, &chatColor); err == nil {
-					tx.Exec("INSERT INTO chat_messages (streamer_id, timestamp, username, display_name, message, emotes, badges, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+					_, _ = tx.Exec("INSERT INTO chat_messages (streamer_id, timestamp, username, display_name, message, emotes, badges, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 						newStreamerID, ts, username, displayName, message, emotes.String, badges.String, chatColor.String)
 				}
 			}
