@@ -26,6 +26,7 @@ import (
 	"github.com/PatrickWalther/twitch-miner-go/internal/pubsub"
 	"github.com/PatrickWalther/twitch-miner-go/internal/settings"
 	"github.com/PatrickWalther/twitch-miner-go/internal/watcher"
+	"github.com/PatrickWalther/twitch-miner-go/internal/web"
 )
 
 type Miner struct {
@@ -41,7 +42,8 @@ type Miner struct {
 	chatManager   *chat.ChatManager
 	watcher       *watcher.MinuteWatcher
 	dropsTracker  *drops.DropsTracker
-	analytics     *analytics.AnalyticsServer
+	analyticsSvc  *analytics.Service
+	webServer     *web.Server
 	notifications *notifications.Manager
 
 	deviceID          string
@@ -63,9 +65,13 @@ func New(cfg *config.Config, configPath string) *Miner {
 	}
 }
 
-func (m *Miner) SetAnalyticsServer(server *analytics.AnalyticsServer) {
-	m.analytics = server
+func (m *Miner) SetAnalyticsService(svc *analytics.Service) {
+	m.analyticsSvc = svc
 	m.externalAnalytics = true
+}
+
+func (m *Miner) SetWebServer(server *web.Server) {
+	m.webServer = server
 }
 
 func (m *Miner) Run() error {
@@ -123,17 +129,17 @@ func (m *Miner) authenticate() error {
 
 	m.auth = auth.NewTwitchAuth(m.config.Username, m.deviceID)
 
-	if m.analytics != nil {
-		broadcaster := m.analytics.GetStatusBroadcaster()
+	if m.webServer != nil {
+		broadcaster := m.webServer.GetStatusBroadcaster()
 		m.auth.SetEventCallback(func(event auth.AuthEvent) {
 			switch event.Type {
 			case auth.AuthEventCode:
 				broadcaster.SetAuthRequired(event.VerificationURI, event.UserCode, event.ExpiresIn)
 			case auth.AuthEventCompleted:
-				broadcaster.SetStatus(analytics.StatusLoadingStreamers, "Loading streamers...")
+				broadcaster.SetStatus(web.StatusLoadingStreamers, "Loading streamers...")
 			case auth.AuthEventError:
 				if event.Error != nil {
-					broadcaster.SetStatus(analytics.StatusError, event.Error.Error())
+					broadcaster.SetStatus(web.StatusError, event.Error.Error())
 				}
 			}
 		})
@@ -163,10 +169,10 @@ func (m *Miner) authenticate() error {
 func (m *Miner) loadStreamers() error {
 	slog.Info("Loading streamers", "count", len(m.config.Streamers))
 
-	var broadcaster *analytics.StatusBroadcaster
-	if m.analytics != nil {
-		broadcaster = m.analytics.GetStatusBroadcaster()
-		broadcaster.SetStatus(analytics.StatusLoadingStreamers, "Loading streamers...")
+	var broadcaster *web.StatusBroadcaster
+	if m.webServer != nil {
+		broadcaster = m.webServer.GetStatusBroadcaster()
+		broadcaster.SetStatus(web.StatusLoadingStreamers, "Loading streamers...")
 	}
 
 	total := len(m.config.Streamers)
@@ -214,21 +220,30 @@ func (m *Miner) setupComponents() {
 	m.wsPool.SetStatusHandler(m.handleStatusChange)
 
 	if m.config.EnableAnalytics {
-		if m.externalAnalytics && m.analytics != nil {
-			m.analytics.AttachStreamers(m.streamers)
-			m.analytics.SetSettingsProvider(m)
-			m.analytics.SetSettingsUpdateCallback(m.ApplySettings)
+		if m.externalAnalytics && m.analyticsSvc != nil {
+			if m.webServer != nil {
+				m.webServer.AttachStreamers(m.streamers)
+				m.webServer.SetSettingsProvider(m)
+				m.webServer.SetSettingsUpdateCallback(m.ApplySettings)
+			}
 		} else {
-			m.analytics = analytics.NewAnalyticsServer(
+			svc, err := analytics.NewService(m.db, m.dbBasePath)
+			if err != nil {
+				slog.Error("Failed to create analytics service", "error", err)
+			} else {
+				m.analyticsSvc = svc
+			}
+
+			m.webServer = web.NewServer(
 				m.config.Analytics,
 				m.config.Username,
 				m.dbBasePath,
-				m.db,
+				m.analyticsSvc,
 				m.streamers,
 			)
-			if m.analytics != nil {
-				m.analytics.SetSettingsProvider(m)
-				m.analytics.SetSettingsUpdateCallback(m.ApplySettings)
+			if m.webServer != nil {
+				m.webServer.SetSettingsProvider(m)
+				m.webServer.SetSettingsUpdateCallback(m.ApplySettings)
 			}
 		}
 	}
@@ -257,10 +272,10 @@ func (m *Miner) setupComponents() {
 		}
 	}
 
-	if m.analytics != nil {
-		m.analytics.SetDiscordEnabled(m.config.Discord.Enabled)
+	if m.webServer != nil {
+		m.webServer.SetDiscordEnabled(m.config.Discord.Enabled)
 		if m.notifications != nil {
-			m.analytics.SetNotificationManager(m.notifications)
+			m.webServer.SetNotificationManager(m.notifications)
 		}
 	}
 
@@ -272,8 +287,8 @@ func (m *Miner) setupComponents() {
 	var chatLogger chat.ChatLogger
 	chatLogsEnabled := m.config.EnableAnalytics && m.config.Analytics.EnableChatLogs
 	slog.Debug("Chat logging config", "enableAnalytics", m.config.EnableAnalytics, "enableChatLogs", m.config.Analytics.EnableChatLogs, "chatLogsEnabled", chatLogsEnabled)
-	if chatLogsEnabled && m.analytics != nil {
-		chatLogger = analytics.NewChatLoggerAdapter(m.analytics)
+	if chatLogsEnabled && m.analyticsSvc != nil {
+		chatLogger = analytics.NewChatLoggerAdapter(m.analyticsSvc)
 	}
 	m.chatManager = chat.NewChatManager(m.config.Username, m.auth.GetAuthToken(), chatLogger, chatLogsEnabled, mentionHandler)
 
@@ -347,11 +362,11 @@ func (m *Miner) startMining() {
 	m.watcher.Start()
 	m.dropsTracker.Start()
 
-	if m.analytics != nil {
+	if m.webServer != nil {
 		if !m.externalAnalytics {
-			m.analytics.Start()
+			m.webServer.Start()
 		}
-		m.analytics.GetStatusBroadcaster().SetStatus(analytics.StatusRunning, "Mining active")
+		m.webServer.GetStatusBroadcaster().SetStatus(web.StatusRunning, "Mining active")
 	}
 
 	go m.streamCheckLoop()
@@ -383,12 +398,12 @@ func (m *Miner) handlePubSubMessage(msg *pubsub.PubSubMessage, streamer *models.
 			if data := msg.Data; data != nil {
 				if pointGain, ok := data["point_gain"].(map[string]interface{}); ok {
 					if reasonCode, ok := pointGain["reason_code"].(string); ok {
-						if m.analytics != nil {
-							m.analytics.RecordPoints(streamer, reasonCode)
+						if m.analyticsSvc != nil {
+							m.analyticsSvc.RecordPoints(streamer, reasonCode)
 
 							if reasonCode == "WATCH_STREAK" {
 								if earned, ok := pointGain["total_points"].(float64); ok {
-									m.analytics.RecordAnnotation(streamer, "WATCH_STREAK", fmt.Sprintf("+%d - Watch Streak", int(earned)))
+									m.analyticsSvc.RecordAnnotation(streamer, "WATCH_STREAK", fmt.Sprintf("+%d - Watch Streak", int(earned)))
 								}
 							}
 						}
@@ -400,24 +415,24 @@ func (m *Miner) handlePubSubMessage(msg *pubsub.PubSubMessage, streamer *models.
 				m.notifications.NotifyPointsReached(streamer.Username, streamer.GetChannelPoints())
 			}
 		case "points-spent":
-			if m.analytics != nil {
-				m.analytics.RecordPoints(streamer, "Spent")
+			if m.analyticsSvc != nil {
+				m.analyticsSvc.RecordPoints(streamer, "Spent")
 			}
 		}
 
 	case pubsub.TopicPredictionsUser:
-		if m.analytics == nil {
+		if m.analyticsSvc == nil {
 			return
 		}
 		switch msg.Type {
 		case "prediction-made":
-			m.analytics.RecordAnnotation(streamer, "PREDICTION_MADE", "Prediction placed")
+			m.analyticsSvc.RecordAnnotation(streamer, "PREDICTION_MADE", "Prediction placed")
 		case "prediction-result":
 			if data := msg.Data; data != nil {
 				if prediction, ok := data["prediction"].(map[string]interface{}); ok {
 					if result, ok := prediction["result"].(map[string]interface{}); ok {
 						if resultType, ok := result["type"].(string); ok {
-							m.analytics.RecordAnnotation(streamer, resultType, "Prediction "+resultType)
+							m.analyticsSvc.RecordAnnotation(streamer, resultType, "Prediction "+resultType)
 						}
 					}
 				}
@@ -464,8 +479,12 @@ func (m *Miner) stop() {
 	m.watcher.Stop()
 	m.dropsTracker.Stop()
 
-	if m.analytics != nil {
-		m.analytics.Stop()
+	if m.webServer != nil {
+		m.webServer.Stop()
+	}
+
+	if m.analyticsSvc != nil {
+		_ = m.analyticsSvc.Close()
 	}
 
 	if m.notifications != nil {
@@ -508,16 +527,12 @@ func generateDeviceID() string {
 	return hex.EncodeToString(b)
 }
 
-// GetRuntimeSettings returns a snapshot of the current runtime configuration.
-// It implements settings.SettingsProvider and is safe for concurrent use.
 func (m *Miner) GetRuntimeSettings() settings.RuntimeSettings {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return settings.BuildRuntimeSettings(m.config)
 }
 
-// GetDefaultSettings returns factory default settings with the current streamer list preserved.
-// It implements settings.SettingsProvider and is used for the "Reset to Defaults" feature.
 func (m *Miner) GetDefaultSettings() settings.RuntimeSettings {
 	m.mu.RLock()
 	currentStreamers := m.config.Streamers
@@ -525,11 +540,6 @@ func (m *Miner) GetDefaultSettings() settings.RuntimeSettings {
 	return settings.BuildDefaultSettings(currentStreamers)
 }
 
-// ApplySettings updates the in-memory config, propagates changes to watchers
-// and streamers, and persists them to the config file. It is called by the
-// analytics server in response to UI changes and is safe to call while mining
-// is running. Note: Adding/removing streamers requires a restart to take effect
-// on the active streaming connections.
 func (m *Miner) ApplySettings(s settings.RuntimeSettings) {
 	m.mu.Lock()
 
@@ -555,7 +565,7 @@ func (m *Miner) ApplySettings(s settings.RuntimeSettings) {
 
 	discordCfg := m.config.Discord
 	notifMgr := m.notifications
-	analytics := m.analytics
+	webServer := m.webServer
 
 	m.mu.Unlock()
 
@@ -587,14 +597,14 @@ func (m *Miner) ApplySettings(s settings.RuntimeSettings) {
 				slog.Error("Failed to start notification manager", "error", err)
 			}
 
-			if analytics != nil {
-				analytics.SetNotificationManager(newNotifMgr)
+			if webServer != nil {
+				webServer.SetNotificationManager(newNotifMgr)
 			}
 		}
 	}
 
-	if analytics != nil {
-		analytics.SetDiscordEnabled(discordCfg.Enabled)
+	if webServer != nil {
+		webServer.SetDiscordEnabled(discordCfg.Enabled)
 	}
 
 	m.mu.Lock()

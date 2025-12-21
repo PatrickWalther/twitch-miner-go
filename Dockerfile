@@ -4,11 +4,17 @@ FROM golang:1.24-alpine AS builder
 WORKDIR /build
 
 # Install git for version detection and ca-certificates for HTTPS
-RUN apk add --no-cache git ca-certificates tzdata curl
+RUN apk add --no-cache git ca-certificates tzdata curl xz
 
 # Download Tailwind CLI
 RUN curl -sLo /usr/local/bin/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-linux-x64 \
     && chmod +x /usr/local/bin/tailwindcss
+
+# Download and install UPX
+RUN curl -sLo /tmp/upx.tar.xz https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz \
+    && cd /tmp && tar -xf upx.tar.xz \
+    && mv upx-4.2.4-amd64_linux/upx /usr/local/bin/ \
+    && rm -rf /tmp/upx*
 
 # Copy go mod files first for better caching
 COPY go.mod go.sum ./
@@ -19,8 +25,8 @@ COPY . .
 
 # Build Tailwind CSS
 RUN tailwindcss -c tailwind.config.js \
-    -i internal/analytics/static/css/input.css \
-    -o internal/analytics/static/css/app.css \
+    -i internal/web/static/css/input.css \
+    -o internal/web/static/css/app.css \
     --minify
 
 # Build arguments for version injection
@@ -31,6 +37,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w -X github.com/PatrickWalther/twitch-miner-go/internal/version.Version=${VERSION}" \
     -o twitch-miner-go \
     ./cmd/miner
+
+# Compress binary with UPX
+RUN upx --best --lzma twitch-miner-go
 
 # Final stage - scratch image for minimal size
 FROM scratch

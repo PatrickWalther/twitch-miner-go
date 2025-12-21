@@ -68,27 +68,40 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Application Core                               │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │    Auth     │  │  WebSocket  │  │    Chat     │  │     Analytics       │ │
-│  │   Manager   │  │    Pool     │  │   Client    │  │      Server         │ │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘ │
-│         │                │                │                     │           │
-│         ▼                ▼                ▼                     ▼           │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │                         Twitch API Client                               ││
-│  │  • GQL Requests    • Stream Monitoring    • Point Operations           ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-│                                    │                                        │
-│                                    ▼                                        │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │                            Data Models                                  ││
-│  │  • Streamer    • Stream    • Bet    • Prediction                       ││
-│  │  • Campaign    • Drop      • Raid   • CommunityGoal                    ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────────┘
-                                     │
-                                     ▼
+│                                   Miner                                     │
+│                          (Main Application Controller)                      │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                         Core Components                               │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐   │  │
+│  │  │    Auth     │  │   PubSub    │  │    Chat     │  │   Drops     │   │  │
+│  │  │   Manager   │  │    Pool     │  │   Manager   │  │   Tracker   │   │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘   │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                    │  │
+│  │  │   Watcher   │  │ Predictions │  │Notifications│                    │  │
+│  │  │(MinuteWatch)│  │   Handler   │  │   Manager   │                    │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘                    │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                     │                                       │
+│                     ┌───────────────┼───────────────┐                       │
+│                     ▼               ▼               ▼                       │
+│  ┌─────────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐  │
+│  │   Twitch API Client │  │ Analytics       │  │     Web Server          │  │
+│  │   (GraphQL)         │  │ Service         │  │     (Dashboard)         │  │
+│  │   • GQL Requests    │  │ (Data Layer)    │  │     • Dashboard UI      │  │
+│  │   • Stream Info     │  │ • Record Points │  │     • Settings Page     │  │
+│  │   • Point Claims    │  │ • Annotations   │  │     • Notifications     │  │
+│  └──────────┬──────────┘  │ • Chat Logs     │  │     • Streamer Charts   │  │
+│             │             └────────┬────────┘  └───────────┬─────────────┘  │
+│             │                      │                       │                │
+│             │                      ▼                       │                │
+│             │             ┌─────────────────┐              │                │
+│             │             │    Database     │◄─────────────┘                │
+│             │             │    (SQLite)     │                               │
+│             │             └─────────────────┘                               │
+└─────────────┼───────────────────────────────────────────────────────────────┘
+              │
+              ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              Twitch Services                                │
 │  ┌────────────────┐  ┌────────────────┐  ┌────────────────────────────────┐ │
@@ -100,31 +113,103 @@
 
 ### Module Structure
 ```
-Application/
-├── Core/
-│   ├── Orchestrator          # Main application controller
-│   ├── Configuration         # Settings management
-│   └── Logger                # Logging system
-├── Auth/
-│   └── TwitchAuth            # OAuth authentication
-├── API/
-│   ├── TwitchClient          # GQL API client
-│   ├── WebSocketPool         # PubSub connection manager
-│   └── IRCClient             # Chat client
-├── Services/
-│   ├── PointsService         # Points earning logic
-│   ├── PredictionService     # Betting logic
-│   ├── DropsService          # Drops tracking
-│   └── AnalyticsService      # Data collection
-└── Models/
-    ├── Streamer
-    ├── Stream
-    ├── Prediction
-    ├── Bet
-    ├── Campaign
-    ├── Drop
-    └── CommunityGoal
+cmd/
+└── miner/
+    └── main.go                 # Application entry point
+
+internal/
+├── miner/                      # Main application controller (orchestrator)
+│   └── miner.go                # Coordinates all components, handles lifecycle
+│
+├── api/                        # Twitch API client
+│   └── client.go               # GraphQL requests, stream info, point operations
+│
+├── auth/                       # Authentication
+│   └── auth.go                 # OAuth device flow, token management
+│
+├── pubsub/                     # WebSocket connections
+│   ├── pool.go                 # Connection pool management
+│   ├── connection.go           # Individual WebSocket connections
+│   └── topics.go               # Topic types and handlers
+│
+├── chat/                       # IRC chat client
+│   ├── manager.go              # Chat connection management
+│   └── client.go               # IRC protocol handling
+│
+├── watcher/                    # Minute-watched tracking
+│   └── watcher.go              # Simulates viewing, reports to Twitch
+│
+├── drops/                      # Game drops tracking
+│   └── tracker.go              # Campaign sync, drop claiming
+│
+├── analytics/                  # Analytics data layer (no HTTP)
+│   ├── service.go              # Point/annotation recording service
+│   ├── repository.go           # SQLite data access
+│   ├── models.go               # Data models (StreamerData, ChatMessage)
+│   └── chat_adapter.go         # Adapter for chat message logging
+│
+├── web/                        # Web dashboard server
+│   ├── server.go               # HTTP server and route handlers
+│   ├── status.go               # Miner status broadcaster (SSE)
+│   ├── viewmodels.go           # Page-specific view models
+│   ├── static/                 # CSS, JavaScript assets
+│   │   ├── css/app.css
+│   │   └── js/
+│   └── templates/              # HTML templates
+│       ├── base.html
+│       ├── dashboard.html
+│       ├── streamer.html
+│       ├── settings.html
+│       ├── notifications.html
+│       └── partials/
+│
+├── notifications/              # Discord notifications
+│   ├── manager.go              # Notification orchestration
+│   ├── discord.go              # Discord bot client
+│   └── repository.go           # Notification rules storage
+│
+├── database/                   # Database layer
+│   └── db.go                   # SQLite connection, migrations
+│
+├── config/                     # Configuration
+│   └── config.go               # Load/save config, defaults
+│
+├── settings/                   # Runtime settings
+│   └── builder.go              # Settings management for UI
+│
+├── models/                     # Domain models
+│   ├── streamer.go             # Streamer, Stream, Raid
+│   ├── prediction.go           # Prediction, Bet, Outcome
+│   └── drops.go                # Campaign, Drop
+│
+├── constants/                  # Application constants
+│   └── constants.go            # Client IDs, endpoints
+│
+├── logger/                     # Logging
+│   └── logger.go               # Structured logging setup
+│
+└── version/                    # Version info
+    └── version.go              # Build version, injected at compile
 ```
+
+### Package Responsibilities
+
+| Package | Responsibility |
+|---------|----------------|
+| `miner` | Main application controller. Orchestrates all components, handles lifecycle. |
+| `api` | Twitch GraphQL API client. All Twitch data fetching and mutations. |
+| `auth` | OAuth device flow authentication. Token storage and refresh. |
+| `pubsub` | WebSocket connection pool for real-time Twitch PubSub events. |
+| `chat` | IRC client for Twitch chat. Presence, mentions, message logging. |
+| `watcher` | Minute-watched simulation. Reports viewing activity to Twitch. |
+| `drops` | Game drops tracking. Campaign sync and drop claiming. |
+| `analytics` | Data layer for points, annotations, chat messages. No HTTP. |
+| `web` | HTTP server for dashboard UI, settings, notifications pages. |
+| `notifications` | Discord bot integration. Mentions, point goals, online/offline alerts. |
+| `database` | SQLite database layer. Connection management, migrations. |
+| `config` | Configuration loading/saving. Defaults and validation. |
+| `settings` | Runtime settings management. UI-driven configuration updates. |
+| `models` | Domain models. Streamer, Prediction, Campaign, etc. |
 
 ---
 
@@ -750,6 +835,10 @@ Legacy files are deleted after successful migration.
 
 ## Analytics System
 
+The analytics system is split into two packages:
+- **`internal/analytics`**: Data layer for recording and querying points, annotations, and chat messages (no HTTP)
+- **`internal/web`**: HTTP server providing the dashboard UI, settings, and notifications pages
+
 ### Data Storage
 
 Analytics data is stored in the unified database (`database/{username}/miner.db`) under the analytics module.
@@ -774,18 +863,24 @@ Analytics data is stored in the unified database (`database/{username}/miner.db`
 | `WIN` | Green (#36b535) | Prediction won |
 | `LOSE` | Red (#ff4545) | Prediction lost |
 
-### Analytics HTTP Endpoints
+### Web Dashboard HTTP Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Dashboard HTML page |
 | `/streamer/{name}` | GET | Streamer detail page with chart and chat |
+| `/settings` | GET | Runtime settings page |
+| `/notifications` | GET | Discord notifications management page |
 | `/streamers` | GET | List of streamers with current points |
 | `/json/{streamer}` | GET | JSON data for specific streamer |
 | `/json_all` | GET | All streamers' data combined |
 | `/api/streamers` | GET | Streamer grid partial (HTMX) |
 | `/api/chat/{streamer}` | GET | Chat messages JSON |
 | `/api/status` | GET | Connection status |
+| `/api/miner-status` | GET | Current miner status JSON |
+| `/api/miner-status/stream` | GET | SSE stream for miner status updates |
+| `/api/settings` | GET/POST | Get or update runtime settings |
+| `/api/settings/reset` | POST | Reset settings to defaults |
 
 #### Query Parameters for `/json/{streamer}`
 - `startDate`: Filter start (YYYY-MM-DD)

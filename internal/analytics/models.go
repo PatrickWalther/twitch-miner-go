@@ -33,33 +33,6 @@ type StreamerInfo struct {
 	OfflineDuration       string `json:"offline_duration,omitempty"`
 }
 
-type DashboardData struct {
-	Username       string
-	RefreshMinutes int
-	Version        string
-	TotalPoints    string
-	StreamerCount  int
-	PointsToday    string
-	DiscordEnabled bool
-}
-
-type StreamerPageData struct {
-	Username       string
-	RefreshMinutes int
-	Version        string
-	Streamer       StreamerInfo
-	PointsGained   string
-	DataPoints     int
-	DaysAgo        int
-	DiscordEnabled bool
-}
-
-type StreamerGridData struct {
-	TrackedLive    []StreamerInfo
-	TrackedOffline []StreamerInfo
-	Untracked      []StreamerInfo
-}
-
 type ChatMessage struct {
 	ID          int64  `json:"id"`
 	Timestamp   int64  `json:"timestamp"`
@@ -75,23 +48,4 @@ type ChatLogData struct {
 	Messages   []ChatMessage `json:"messages"`
 	TotalCount int           `json:"total_count"`
 	HasMore    bool          `json:"has_more"`
-}
-
-// SettingsPageData contains template data for the settings page.
-type SettingsPageData struct {
-	Username       string
-	RefreshMinutes int
-	Version        string
-	DiscordEnabled bool
-}
-
-// NotificationsPageData contains template data for the notifications page.
-type NotificationsPageData struct {
-	Username       string
-	RefreshMinutes int
-	Version        string
-	DiscordEnabled bool
-	ConfigValid    bool
-	ConfigError    string
-	Streamers      []string
 }

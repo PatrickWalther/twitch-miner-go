@@ -14,6 +14,7 @@ import (
 	"github.com/PatrickWalther/twitch-miner-go/internal/miner"
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
 	"github.com/PatrickWalther/twitch-miner-go/internal/version"
+	"github.com/PatrickWalther/twitch-miner-go/internal/web"
 )
 
 var (
@@ -66,7 +67,8 @@ func main() {
 
 	slog.Info("Twitch Channel Points Miner", "version", version.Version)
 
-	var analyticsServer *analytics.AnalyticsServer
+	var analyticsSvc *analytics.Service
+	var webServer *web.Server
 	var db *database.DB
 	if cfg.EnableAnalytics {
 		dbBasePath := filepath.Join("database", cfg.Username)
@@ -80,16 +82,26 @@ func main() {
 			os.Exit(1)
 		}
 		defer func() { _ = db.Close() }()
-		analyticsServer = analytics.NewAnalyticsServerEarly(cfg.Analytics, cfg.Username, dbBasePath, db)
-		if analyticsServer != nil {
-			analyticsServer.Start()
-			defer analyticsServer.Stop()
+
+		analyticsSvc, err = analytics.NewService(db, dbBasePath)
+		if err != nil {
+			slog.Error("Failed to create analytics service", "error", err)
+			os.Exit(1)
+		}
+
+		webServer = web.NewServerEarly(cfg.Analytics, cfg.Username, dbBasePath, analyticsSvc)
+		if webServer != nil {
+			webServer.Start()
+			defer webServer.Stop()
 		}
 	}
 
 	m := miner.New(cfg, *configFile)
-	if analyticsServer != nil {
-		m.SetAnalyticsServer(analyticsServer)
+	if analyticsSvc != nil {
+		m.SetAnalyticsService(analyticsSvc)
+	}
+	if webServer != nil {
+		m.SetWebServer(webServer)
 	}
 	if err := m.Run(); err != nil {
 		slog.Error("Miner error", "error", err)

@@ -1,4 +1,4 @@
-.PHONY: build build-all clean test docker docker-push help tailwind tailwind-install tailwind-watch
+.PHONY: build build-all clean test docker docker-push help tailwind tailwind-install tailwind-watch upx upx-install
 
 BINARY_NAME := twitch-miner-go
 MODULE := github.com/PatrickWalther/twitch-miner-go
@@ -9,10 +9,30 @@ BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS := -s -w -X $(MODULE)/internal/version.Version=$(VERSION)
 DOCKER_REPO ?= thegame402/twitch-miner-go
 
+# UPX configuration
+UPX_VERSION := 4.2.4
+ifeq ($(OS),Windows_NT)
+    UPX_BIN := bin/upx.exe
+    UPX_RELEASE := upx-$(UPX_VERSION)-win64
+    UPX_EXT := .zip
+else
+    UNAME_S := $(shell uname -s)
+    UNAME_M := $(shell uname -m)
+    UPX_BIN := bin/upx
+    UPX_EXT := .tar.xz
+    ifeq ($(UNAME_M),aarch64)
+        UPX_RELEASE := upx-$(UPX_VERSION)-arm64_linux
+    else ifeq ($(UNAME_M),arm64)
+        UPX_RELEASE := upx-$(UPX_VERSION)-arm64_linux
+    else
+        UPX_RELEASE := upx-$(UPX_VERSION)-amd64_linux
+    endif
+endif
+
 # Tailwind configuration
 TAILWIND_VERSION := v3.4.17
-TAILWIND_INPUT := internal/analytics/static/css/input.css
-TAILWIND_OUTPUT := internal/analytics/static/css/app.css
+TAILWIND_INPUT := internal/web/static/css/input.css
+TAILWIND_OUTPUT := internal/web/static/css/app.css
 TAILWIND_CONFIG := tailwind.config.js
 
 # Detect OS and architecture for Tailwind CLI download
@@ -57,9 +77,32 @@ tailwind-watch: $(TAILWIND_BIN)
 $(TAILWIND_BIN):
 	$(MAKE) tailwind-install
 
+# Install UPX
+upx-install:
+	@mkdir -p bin
+	@echo "Downloading UPX $(UPX_VERSION)..."
+ifeq ($(OS),Windows_NT)
+	curl -sLo bin/upx$(UPX_EXT) https://github.com/upx/upx/releases/download/v$(UPX_VERSION)/$(UPX_RELEASE)$(UPX_EXT)
+	cd bin && unzip -o upx$(UPX_EXT) && mv $(UPX_RELEASE)/upx.exe . && rm -rf $(UPX_RELEASE) upx$(UPX_EXT)
+else
+	curl -sLo bin/upx$(UPX_EXT) https://github.com/upx/upx/releases/download/v$(UPX_VERSION)/$(UPX_RELEASE)$(UPX_EXT)
+	cd bin && tar -xf upx$(UPX_EXT) && mv $(UPX_RELEASE)/upx . && rm -rf $(UPX_RELEASE) upx$(UPX_EXT)
+endif
+	@echo "UPX installed to $(UPX_BIN)"
+
+$(UPX_BIN):
+	$(MAKE) upx-install
+
+# Compress binary with UPX
+upx: $(UPX_BIN)
+	$(UPX_BIN) --best --lzma $(BINARY_NAME)
+
 # Build for current platform (includes Tailwind)
 build: tailwind
 	go build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) ./cmd/miner
+
+# Build and compress with UPX
+build-compressed: build upx
 
 # Build Go only (skip Tailwind - use when CSS is already built)
 build-go:
@@ -115,8 +158,11 @@ help:
 	@echo "Twitch Channel Points Miner - Build Targets"
 	@echo ""
 	@echo "  build            Build for current platform (includes Tailwind)"
+	@echo "  build-compressed Build and compress with UPX (smallest size)"
 	@echo "  build-go         Build Go binary only (skip Tailwind)"
 	@echo "  build-all        Build for all platforms (linux, windows, darwin)"
+	@echo "  upx              Compress existing binary with UPX"
+	@echo "  upx-install      Install UPX binary"
 	@echo "  tailwind         Build Tailwind CSS (production minified)"
 	@echo "  tailwind-watch   Watch mode for Tailwind development"
 	@echo "  tailwind-install Install Tailwind CLI binary"

@@ -4,7 +4,7 @@
 [![Release](https://github.com/PatrickWalther/twitch-miner-go/actions/workflows/release.yml/badge.svg)](https://github.com/PatrickWalther/twitch-miner-go/releases)
 [![Docker](https://img.shields.io/docker/v/thegame402/twitch-miner-go?label=docker)](https://hub.docker.com/r/thegame402/twitch-miner-go)
 
-A Go rewrite of [Twitch-Channel-Points-Miner-v2](https://github.com/rdavydov/Twitch-Channel-Points-Miner-v2), now with Discord notifications. This rewrite was done for performance and size reasons - the Docker image is over 70x smaller (only 6.1MB) and standalone binaries for all major operating systems are available at under 15MB each.
+A Go rewrite of [Twitch-Channel-Points-Miner-v2](https://github.com/rdavydov/Twitch-Channel-Points-Miner-v2), now with Discord notifications. This rewrite was done for performance and size reasons - the Docker image is over 85x smaller (only ~5MB vs 440MB) and standalone binaries at under 5MB each.
 
 This tool passively earns Twitch channel points by simulating viewer presence across multiple streams.
 
@@ -37,6 +37,9 @@ cd twitch-miner-go
 
 # Build with version info
 make build
+
+# Build with UPX compression (smallest size)
+make build-compressed
 
 # Or build manually
 go build -ldflags "-s -w -X github.com/PatrickWalther/twitch-miner-go/internal/version.Version=$(git describe --tags)" -o twitch-miner-go ./cmd/miner
@@ -173,16 +176,16 @@ The application watches up to 2 streams simultaneously, selected by priority:
 | `ONLINE` | Connect when streamer is online |
 | `OFFLINE` | Connect when streamer is offline |
 
-## Analytics
+## Web Dashboard
 
-When enabled, the analytics server provides a web dashboard at `http://localhost:5000` showing:
-- Current points per streamer
-- Historical point data with interactive charts
-- Prediction results and annotations
-- Watch streak bonuses
-- **Chat logging** with search functionality (optional)
+When enabled, the web server provides a dashboard at `http://localhost:5000` with:
+- **Dashboard**: Overview of all streamers with current points and today's earnings
+- **Streamer Pages**: Historical point data with interactive charts
+- **Settings**: Runtime configuration (can be changed without restart)
+- **Notifications**: Discord notification management (when Discord is enabled)
+- **Chat Logs**: Searchable chat history per streamer (optional)
 
-### Analytics Configuration
+### Web Dashboard Configuration
 
 ```json
 {

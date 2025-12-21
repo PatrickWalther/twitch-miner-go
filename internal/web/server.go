@@ -1,4 +1,4 @@
-package analytics
+package web
 
 import (
 	"context"
@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PatrickWalther/twitch-miner-go/internal/analytics"
 	"github.com/PatrickWalther/twitch-miner-go/internal/config"
-	"github.com/PatrickWalther/twitch-miner-go/internal/database"
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
 	"github.com/PatrickWalther/twitch-miner-go/internal/notifications"
 	"github.com/PatrickWalther/twitch-miner-go/internal/settings"
@@ -29,7 +29,7 @@ var templatesFS embed.FS
 //go:embed static/*
 var staticFS embed.FS
 
-type AnalyticsServer struct {
+type Server struct {
 	host           string
 	port           int
 	refresh        int
@@ -39,8 +39,7 @@ type AnalyticsServer struct {
 	streamers      []*models.Streamer
 	discordEnabled bool
 
-	db                  *database.DB
-	repo                Repository
+	analytics           *analytics.Service
 	server              *http.Server
 	templates           map[string]*template.Template
 	settingsProvider    settings.SettingsProvider
@@ -51,37 +50,10 @@ type AnalyticsServer struct {
 	mu                  sync.RWMutex
 }
 
-func NewAnalyticsServer(analyticsSettings config.AnalyticsSettings, username string, basePath string, db *database.DB, streamers []*models.Streamer) *AnalyticsServer {
-	repo, err := NewSQLiteRepository(db, basePath)
-	if err != nil {
-		slog.Error("Failed to create analytics repository", "error", err)
-		return nil
-	}
+func NewServer(analyticsSettings config.AnalyticsSettings, username string, basePath string, analyticsSvc *analytics.Service, streamers []*models.Streamer) *Server {
+	templates := loadTemplates()
 
-	templates := make(map[string]*template.Template)
-
-	pages := []string{"dashboard.html", "streamer.html", "settings.html", "notifications.html"}
-	for _, page := range pages {
-		tmpl, err := template.ParseFS(templatesFS,
-			"templates/base.html",
-			"templates/"+page,
-			"templates/partials/*.html",
-		)
-		if err != nil {
-			slog.Error("Failed to parse template", "page", page, "error", err)
-			continue
-		}
-		templates[page] = tmpl
-	}
-
-	partials, err := template.ParseFS(templatesFS, "templates/partials/*.html")
-	if err != nil {
-		slog.Error("Failed to parse partials", "error", err)
-	} else {
-		templates["partials"] = partials
-	}
-
-	return &AnalyticsServer{
+	return &Server{
 		host:      analyticsSettings.Host,
 		port:      analyticsSettings.Port,
 		refresh:   analyticsSettings.Refresh,
@@ -89,21 +61,32 @@ func NewAnalyticsServer(analyticsSettings config.AnalyticsSettings, username str
 		username:  username,
 		basePath:  basePath,
 		streamers: streamers,
-		db:        db,
-		repo:      repo,
+		analytics: analyticsSvc,
 		templates: templates,
 		status:    NewStatusBroadcaster(),
 		ready:     len(streamers) > 0,
 	}
 }
 
-func NewAnalyticsServerEarly(analyticsSettings config.AnalyticsSettings, username string, basePath string, db *database.DB) *AnalyticsServer {
-	repo, err := NewSQLiteRepository(db, basePath)
-	if err != nil {
-		slog.Error("Failed to create analytics repository", "error", err)
-		return nil
-	}
+func NewServerEarly(analyticsSettings config.AnalyticsSettings, username string, basePath string, analyticsSvc *analytics.Service) *Server {
+	templates := loadTemplates()
 
+	return &Server{
+		host:      analyticsSettings.Host,
+		port:      analyticsSettings.Port,
+		refresh:   analyticsSettings.Refresh,
+		daysAgo:   analyticsSettings.DaysAgo,
+		username:  username,
+		basePath:  basePath,
+		streamers: nil,
+		analytics: analyticsSvc,
+		templates: templates,
+		status:    NewStatusBroadcaster(),
+		ready:     false,
+	}
+}
+
+func loadTemplates() map[string]*template.Template {
 	templates := make(map[string]*template.Template)
 
 	pages := []string{"dashboard.html", "streamer.html", "settings.html", "notifications.html"}
@@ -127,65 +110,51 @@ func NewAnalyticsServerEarly(analyticsSettings config.AnalyticsSettings, usernam
 		templates["partials"] = partials
 	}
 
-	return &AnalyticsServer{
-		host:      analyticsSettings.Host,
-		port:      analyticsSettings.Port,
-		refresh:   analyticsSettings.Refresh,
-		daysAgo:   analyticsSettings.DaysAgo,
-		username:  username,
-		basePath:  basePath,
-		streamers: nil,
-		db:        db,
-		repo:      repo,
-		templates: templates,
-		status:    NewStatusBroadcaster(),
-		ready:     false,
-	}
+	return templates
 }
 
-func (s *AnalyticsServer) AttachStreamers(streamers []*models.Streamer) {
+func (s *Server) AttachStreamers(streamers []*models.Streamer) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.streamers = streamers
 	s.ready = true
 }
 
-func (s *AnalyticsServer) GetStatusBroadcaster() *StatusBroadcaster {
+func (s *Server) GetStatusBroadcaster() *StatusBroadcaster {
 	return s.status
 }
 
-func (s *AnalyticsServer) GetDB() *database.DB {
-	return s.db
+func (s *Server) GetAnalyticsService() *analytics.Service {
+	return s.analytics
 }
 
-func (s *AnalyticsServer) GetBasePath() string {
+func (s *Server) GetBasePath() string {
 	return s.basePath
 }
 
-func (s *AnalyticsServer) SetSettingsProvider(provider settings.SettingsProvider) {
+func (s *Server) SetSettingsProvider(provider settings.SettingsProvider) {
 	s.settingsProvider = provider
 }
 
-func (s *AnalyticsServer) SetSettingsUpdateCallback(callback settings.SettingsUpdateCallback) {
+func (s *Server) SetSettingsUpdateCallback(callback settings.SettingsUpdateCallback) {
 	s.onSettingsUpdate = callback
 }
 
-func (s *AnalyticsServer) SetNotificationManager(mgr *notifications.Manager) {
+func (s *Server) SetNotificationManager(mgr *notifications.Manager) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.notificationManager = mgr
 }
 
-func (s *AnalyticsServer) SetDiscordEnabled(enabled bool) {
+func (s *Server) SetDiscordEnabled(enabled bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.discordEnabled = enabled
 }
 
-func (s *AnalyticsServer) Start() {
+func (s *Server) Start() {
 	mux := http.NewServeMux()
 
-	// Serve static files from embedded filesystem
 	staticSub, err := fs.Sub(staticFS, "static")
 	if err != nil {
 		slog.Error("Failed to create static filesystem", "error", err)
@@ -221,31 +190,29 @@ func (s *AnalyticsServer) Start() {
 		Handler: mux,
 	}
 
-	slog.Info("Analytics server starting", "url", "http://"+addr+"/")
+	slog.Info("Web server starting", "url", "http://"+addr+"/")
 
 	go func() {
 		if err := s.server.ListenAndServe(); err != http.ErrServerClosed {
-			slog.Error("Analytics server error", "error", err)
+			slog.Error("Web server error", "error", err)
 		}
 	}()
 }
 
-func (s *AnalyticsServer) Stop() {
+func (s *Server) Stop() {
 	if s.server != nil {
 		_ = s.server.Close()
 	}
-	if s.repo != nil {
-		_ = s.repo.Close()
-	}
 }
 
-func (s *AnalyticsServer) handleDashboard(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
 	}
 
-	streamers, err := s.repo.ListStreamers()
+	repo := s.analytics.Repository()
+	streamers, err := repo.ListStreamers()
 	if err != nil {
 		slog.Error("Failed to list streamers", "error", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
@@ -259,7 +226,7 @@ func (s *AnalyticsServer) handleDashboard(w http.ResponseWriter, r *http.Request
 	for _, info := range streamers {
 		totalPoints += info.Points
 
-		data, err := s.repo.GetStreamerData(info.Name)
+		data, err := repo.GetStreamerData(info.Name)
 		if err != nil {
 			continue
 		}
@@ -295,14 +262,15 @@ func (s *AnalyticsServer) handleDashboard(w http.ResponseWriter, r *http.Request
 	s.renderPage(w, "dashboard.html", data)
 }
 
-func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleStreamerPage(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(r.URL.Path, "/streamer/")
 	if name == "" {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
 
-	data, err := s.repo.GetStreamerData(name)
+	repo := s.analytics.Repository()
+	data, err := repo.GetStreamerData(name)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -350,12 +318,15 @@ func (s *AnalyticsServer) handleStreamerPage(w http.ResponseWriter, r *http.Requ
 	s.renderPage(w, "streamer.html", pageData)
 }
 
-func (s *AnalyticsServer) handleAPIStreamers(w http.ResponseWriter, r *http.Request) {
-	streamers, err := s.repo.ListStreamers()
+func (s *Server) handleAPIStreamers(w http.ResponseWriter, r *http.Request) {
+	repo := s.analytics.Repository()
+	repoStreamers, err := repo.ListStreamers()
 	if err != nil {
 		http.Error(w, "Failed to list streamers", http.StatusInternalServerError)
 		return
 	}
+
+	streamers := convertStreamerInfoList(repoStreamers)
 
 	streamerMap := make(map[string]*models.Streamer)
 	configOrder := make(map[string]int)
@@ -412,18 +383,18 @@ func (s *AnalyticsServer) handleAPIStreamers(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func (s *AnalyticsServer) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	_, _ = w.Write([]byte("Connected"))
 }
 
-func (s *AnalyticsServer) handleAPIMinerStatus(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAPIMinerStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	status := s.status.GetStatus()
 	_ = json.NewEncoder(w).Encode(status)
 }
 
-func (s *AnalyticsServer) handleAPIMinerStatusStream(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAPIMinerStatusStream(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "SSE not supported", http.StatusInternalServerError)
@@ -454,7 +425,7 @@ func (s *AnalyticsServer) handleAPIMinerStatusStream(w http.ResponseWriter, r *h
 	}
 }
 
-func (s *AnalyticsServer) handleSettingsPage(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleSettingsPage(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	refresh := s.refresh
 	discordEnabled := s.discordEnabled
@@ -469,7 +440,7 @@ func (s *AnalyticsServer) handleSettingsPage(w http.ResponseWriter, r *http.Requ
 	s.renderPage(w, "settings.html", data)
 }
 
-func (s *AnalyticsServer) handleAPISettings(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAPISettings(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		if s.settingsProvider == nil {
 			http.Error(w, "Settings not available", http.StatusServiceUnavailable)
@@ -505,7 +476,7 @@ func (s *AnalyticsServer) handleAPISettings(w http.ResponseWriter, r *http.Reque
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
-func (s *AnalyticsServer) handleAPISettingsReset(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAPISettingsReset(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -531,7 +502,7 @@ func (s *AnalyticsServer) handleAPISettingsReset(w http.ResponseWriter, r *http.
 	_ = json.NewEncoder(w).Encode(defaults)
 }
 
-func (s *AnalyticsServer) renderPage(w http.ResponseWriter, page string, data interface{}) {
+func (s *Server) renderPage(w http.ResponseWriter, page string, data interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	tmpl, ok := s.templates[page]
@@ -547,8 +518,9 @@ func (s *AnalyticsServer) renderPage(w http.ResponseWriter, page string, data in
 	}
 }
 
-func (s *AnalyticsServer) handleStreamers(w http.ResponseWriter, r *http.Request) {
-	streamers, err := s.repo.ListStreamers()
+func (s *Server) handleStreamers(w http.ResponseWriter, r *http.Request) {
+	repo := s.analytics.Repository()
+	streamers, err := repo.ListStreamers()
 	if err != nil {
 		http.Error(w, "Failed to list streamers", http.StatusInternalServerError)
 		return
@@ -558,7 +530,7 @@ func (s *AnalyticsServer) handleStreamers(w http.ResponseWriter, r *http.Request
 	_ = json.NewEncoder(w).Encode(streamers)
 }
 
-func (s *AnalyticsServer) handleJSON(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleJSON(w http.ResponseWriter, r *http.Request) {
 	streamer := strings.TrimPrefix(r.URL.Path, "/json/")
 	streamer = strings.TrimSuffix(streamer, ".json")
 
@@ -582,12 +554,13 @@ func (s *AnalyticsServer) handleJSON(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var data *StreamerData
+	repo := s.analytics.Repository()
+	var data *analytics.StreamerData
 	var err error
 	if !startTime.IsZero() || !endTime.IsZero() {
-		data, err = s.repo.GetStreamerDataFiltered(streamer, startTime, endTime)
+		data, err = repo.GetStreamerDataFiltered(streamer, startTime, endTime)
 	} else {
-		data, err = s.repo.GetStreamerData(streamer)
+		data, err = repo.GetStreamerData(streamer)
 	}
 
 	if err != nil {
@@ -599,21 +572,22 @@ func (s *AnalyticsServer) handleJSON(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(data)
 }
 
-func (s *AnalyticsServer) handleJSONAll(w http.ResponseWriter, r *http.Request) {
-	streamers, err := s.repo.ListStreamers()
+func (s *Server) handleJSONAll(w http.ResponseWriter, r *http.Request) {
+	repo := s.analytics.Repository()
+	streamers, err := repo.ListStreamers()
 	if err != nil {
 		http.Error(w, "Failed to list streamers", http.StatusInternalServerError)
 		return
 	}
 
 	type namedData struct {
-		Name string       `json:"name"`
-		Data StreamerData `json:"data"`
+		Name string                 `json:"name"`
+		Data analytics.StreamerData `json:"data"`
 	}
 
 	var result []namedData
 	for _, info := range streamers {
-		data, err := s.repo.GetStreamerData(info.Name)
+		data, err := repo.GetStreamerData(info.Name)
 		if err != nil {
 			continue
 		}
@@ -624,7 +598,7 @@ func (s *AnalyticsServer) handleJSONAll(w http.ResponseWriter, r *http.Request) 
 	_ = json.NewEncoder(w).Encode(result)
 }
 
-func (s *AnalyticsServer) handleAPIChatMessages(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAPIChatMessages(w http.ResponseWriter, r *http.Request) {
 	streamer := strings.TrimPrefix(r.URL.Path, "/api/chat/")
 	if streamer == "" {
 		http.Error(w, "Streamer not specified", http.StatusBadRequest)
@@ -650,13 +624,14 @@ func (s *AnalyticsServer) handleAPIChatMessages(w http.ResponseWriter, r *http.R
 		}
 	}
 
-	var data *ChatLogData
+	repo := s.analytics.Repository()
+	var data *analytics.ChatLogData
 	var err error
 
 	if query != "" {
-		data, err = s.repo.SearchChatMessages(streamer, query, limit, offset)
+		data, err = repo.SearchChatMessages(streamer, query, limit, offset)
 	} else {
-		data, err = s.repo.GetChatMessages(streamer, limit, offset)
+		data, err = repo.GetChatMessages(streamer, limit, offset)
 	}
 
 	if err != nil {
@@ -668,104 +643,7 @@ func (s *AnalyticsServer) handleAPIChatMessages(w http.ResponseWriter, r *http.R
 	_ = json.NewEncoder(w).Encode(data)
 }
 
-func (s *AnalyticsServer) RecordPoints(streamer *models.Streamer, eventType string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	eventType = strings.ReplaceAll(eventType, "_", " ")
-	if err := s.repo.RecordPoints(streamer.Username, streamer.GetChannelPoints(), eventType); err != nil {
-		slog.Error("Failed to record points", "streamer", streamer.Username, "error", err)
-	}
-}
-
-func (s *AnalyticsServer) RecordAnnotation(streamer *models.Streamer, eventType, text string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	colors := map[string]string{
-		"WATCH_STREAK":    "#45c1ff",
-		"PREDICTION_MADE": "#ffe045",
-		"WIN":             "#36b535",
-		"LOSE":            "#ff4545",
-	}
-
-	color, ok := colors[eventType]
-	if !ok {
-		return
-	}
-
-	if err := s.repo.RecordAnnotation(streamer.Username, eventType, text, color); err != nil {
-		slog.Error("Failed to record annotation", "streamer", streamer.Username, "error", err)
-	}
-}
-
-func (s *AnalyticsServer) RecordChatMessage(streamer string, username, displayName, message, emotes, badges, color string) error {
-	msg := ChatMessage{
-		Username:    username,
-		DisplayName: displayName,
-		Message:     message,
-		Emotes:      emotes,
-		Badges:      badges,
-		Color:       color,
-	}
-	return s.repo.RecordChatMessage(streamer, msg)
-}
-
-func formatNumber(n int) string {
-	if n == 0 {
-		return "0"
-	}
-
-	sign := ""
-	if n < 0 {
-		sign = "-"
-		n = -n
-	}
-
-	s := fmt.Sprintf("%d", n)
-	result := ""
-	for i, c := range s {
-		if i > 0 && (len(s)-i)%3 == 0 {
-			result += ","
-		}
-		result += string(c)
-	}
-	return sign + result
-}
-
-func formatTimeAgo(timestamp int64) string {
-	if timestamp == 0 {
-		return "Never"
-	}
-
-	seconds := (time.Now().UnixMilli() - timestamp) / 1000
-	if seconds < 60 {
-		return "Just now"
-	}
-	if seconds < 3600 {
-		return fmt.Sprintf("%dm ago", seconds/60)
-	}
-	if seconds < 86400 {
-		return fmt.Sprintf("%dh ago", seconds/3600)
-	}
-	return fmt.Sprintf("%dd ago", seconds/86400)
-}
-
-func formatDuration(d time.Duration) string {
-	totalSeconds := int(d.Seconds())
-	if totalSeconds < 60 {
-		return fmt.Sprintf("%ds", totalSeconds)
-	}
-	if totalSeconds < 3600 {
-		return fmt.Sprintf("%dm", totalSeconds/60)
-	}
-	if totalSeconds < 86400 {
-		return fmt.Sprintf("%dh", totalSeconds/3600)
-	}
-	return fmt.Sprintf("%dd", totalSeconds/86400)
-}
-
-func (s *AnalyticsServer) handleNotificationsPage(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleNotificationsPage(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	refresh := s.refresh
 	discordEnabled := s.discordEnabled
@@ -801,7 +679,7 @@ func (s *AnalyticsServer) handleNotificationsPage(w http.ResponseWriter, r *http
 	s.renderPage(w, "notifications.html", data)
 }
 
-func (s *AnalyticsServer) handleAPINotificationsConfig(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAPINotificationsConfig(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	notifMgr := s.notificationManager
 	s.mu.RUnlock()
@@ -842,7 +720,7 @@ func (s *AnalyticsServer) handleAPINotificationsConfig(w http.ResponseWriter, r 
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
-func (s *AnalyticsServer) handleAPINotificationsChannels(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAPINotificationsChannels(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	notifMgr := s.notificationManager
 	s.mu.RUnlock()
@@ -863,7 +741,7 @@ func (s *AnalyticsServer) handleAPINotificationsChannels(w http.ResponseWriter, 
 	_ = json.NewEncoder(w).Encode(channels)
 }
 
-func (s *AnalyticsServer) handleAPINotificationsPoints(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAPINotificationsPoints(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()
 	notifMgr := s.notificationManager
 	s.mu.RUnlock()
@@ -904,7 +782,7 @@ func (s *AnalyticsServer) handleAPINotificationsPoints(w http.ResponseWriter, r 
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
-func (s *AnalyticsServer) handleAPINotificationsPointsDelete(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAPINotificationsPointsDelete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -935,7 +813,7 @@ func (s *AnalyticsServer) handleAPINotificationsPointsDelete(w http.ResponseWrit
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
-func (s *AnalyticsServer) handleAPINotificationsTest(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleAPINotificationsTest(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -958,4 +836,40 @@ func (s *AnalyticsServer) handleAPINotificationsTest(w http.ResponseWriter, r *h
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]int{"sent": sent})
+}
+
+func formatNumber(n int) string {
+	if n == 0 {
+		return "0"
+	}
+
+	sign := ""
+	if n < 0 {
+		sign = "-"
+		n = -n
+	}
+
+	s := fmt.Sprintf("%d", n)
+	result := ""
+	for i, c := range s {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			result += ","
+		}
+		result += string(c)
+	}
+	return sign + result
+}
+
+func formatDuration(d time.Duration) string {
+	totalSeconds := int(d.Seconds())
+	if totalSeconds < 60 {
+		return fmt.Sprintf("%ds", totalSeconds)
+	}
+	if totalSeconds < 3600 {
+		return fmt.Sprintf("%dm", totalSeconds/60)
+	}
+	if totalSeconds < 86400 {
+		return fmt.Sprintf("%dh", totalSeconds/3600)
+	}
+	return fmt.Sprintf("%dd", totalSeconds/86400)
 }
