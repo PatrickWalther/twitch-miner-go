@@ -63,6 +63,12 @@ jobs:
         with:
           go-version: "1.24"
 
+      - name: Install UPX
+        run: |
+          curl -sLo /tmp/upx.tar.xz https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz
+          cd /tmp && tar -xf upx.tar.xz
+          sudo mv upx-4.2.4-amd64_linux/upx /usr/local/bin/
+
       - name: Build binary
         env:
           CGO_ENABLED: 0
@@ -72,6 +78,9 @@ jobs:
           go build -ldflags="-s -w -X github.com/PatrickWalther/twitch-miner-go/internal/version.Version=${{ github.ref_name }}" \
             -o twitch-miner-go-${{ matrix.suffix }} \
             ./cmd/miner
+
+      - name: Compress with UPX
+        run: upx --best --lzma twitch-miner-go-${{ matrix.suffix }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
