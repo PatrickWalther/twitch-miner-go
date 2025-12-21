@@ -30,10 +30,9 @@ else
 endif
 
 # Tailwind configuration
-TAILWIND_VERSION := v3.4.17
+TAILWIND_VERSION := v4.1.18
 TAILWIND_INPUT := internal/web/static/css/input.css
 TAILWIND_OUTPUT := internal/web/static/css/app.css
-TAILWIND_CONFIG := tailwind.config.js
 
 # Detect OS and architecture for Tailwind CLI download
 ifeq ($(OS),Windows_NT)
@@ -68,11 +67,11 @@ tailwind-install:
 
 # Build Tailwind CSS (production)
 tailwind: $(TAILWIND_BIN)
-	$(TAILWIND_BIN) -c $(TAILWIND_CONFIG) -i $(TAILWIND_INPUT) -o $(TAILWIND_OUTPUT) --minify
+	$(TAILWIND_BIN) -i $(TAILWIND_INPUT) -o $(TAILWIND_OUTPUT) --minify
 
 # Watch mode for Tailwind development
 tailwind-watch: $(TAILWIND_BIN)
-	$(TAILWIND_BIN) -c $(TAILWIND_CONFIG) -i $(TAILWIND_INPUT) -o $(TAILWIND_OUTPUT) --watch
+	$(TAILWIND_BIN) -i $(TAILWIND_INPUT) -o $(TAILWIND_OUTPUT) --watch
 
 $(TAILWIND_BIN):
 	$(MAKE) tailwind-install

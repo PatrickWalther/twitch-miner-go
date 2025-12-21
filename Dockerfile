@@ -4,10 +4,11 @@ FROM golang:1.24-alpine AS builder
 WORKDIR /build
 
 # Install git for version detection and ca-certificates for HTTPS
-RUN apk add --no-cache git ca-certificates tzdata curl xz
+# libstdc++ and libgcc are needed for Tailwind CLI v4
+RUN apk add --no-cache git ca-certificates tzdata curl xz libstdc++ libgcc
 
-# Download Tailwind CLI
-RUN curl -sLo /usr/local/bin/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v3.4.17/tailwindcss-linux-x64 \
+# Download Tailwind CLI v4 (musl version for Alpine)
+RUN curl -sLo /usr/local/bin/tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.18/tailwindcss-linux-x64-musl \
     && chmod +x /usr/local/bin/tailwindcss
 
 # Download and install UPX
@@ -24,7 +25,7 @@ RUN go mod download
 COPY . .
 
 # Build Tailwind CSS
-RUN tailwindcss -c tailwind.config.js \
+RUN tailwindcss \
     -i internal/web/static/css/input.css \
     -o internal/web/static/css/app.css \
     --minify

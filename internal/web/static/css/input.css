@@ -1,113 +1,124 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer components {
-  .btn-primary {
-    @apply bg-purple-600 text-white hover:bg-purple-700 px-4 py-2 rounded-md font-medium transition-colors;
-  }
+@source "../../../templates";
 
-  .btn-secondary {
-    @apply bg-neutral-800 border border-neutral-700 text-neutral-100 hover:border-purple-500 hover:text-purple-400 px-4 py-2 rounded-md font-medium transition-colors;
-  }
+@utility btn-primary {
+  @apply bg-purple-600 text-white hover:bg-purple-700 px-4 py-2 rounded-md font-medium transition-colors;
+}
 
-  .card {
-    @apply bg-neutral-800 border border-neutral-700 rounded-lg p-6;
-  }
+@utility btn-secondary {
+  @apply bg-neutral-800 border border-neutral-700 text-neutral-100 hover:border-purple-500 hover:text-purple-400 px-4 py-2 rounded-md font-medium transition-colors;
+}
 
-  .input-field {
-    @apply bg-neutral-900 border border-neutral-700 rounded-md px-3 py-2 text-neutral-100 focus:outline-none focus:border-purple-500;
-  }
+@utility card {
+  @apply bg-neutral-800 border border-neutral-700 rounded-lg p-6;
+}
 
-  .section-title {
-    @apply text-xl font-semibold text-neutral-100 pb-2 mb-4 border-b border-neutral-700;
-  }
+@utility input-field {
+  @apply bg-neutral-900 border border-neutral-700 rounded-md px-3 py-2 text-neutral-100 focus:outline-none focus:border-purple-500;
+}
 
-  .subsection-title {
-    @apply text-sm font-medium text-neutral-400 uppercase tracking-wide my-3;
-  }
+@utility section-title {
+  @apply text-xl font-semibold text-neutral-100 pb-2 mb-4 border-b border-neutral-700;
+}
 
-  .setting-row {
-    @apply flex items-center justify-between py-3 border-b border-neutral-700 last:border-b-0;
-  }
+@utility subsection-title {
+  @apply text-sm font-medium text-neutral-400 uppercase tracking-wide my-3;
+}
 
-  .setting-label {
-    @apply text-neutral-100 font-medium;
-  }
+@utility setting-row {
+  @apply flex items-center justify-between py-3 border-b border-neutral-700 last:border-b-0;
+}
 
-  .setting-description {
-    @apply text-neutral-400 text-xs mt-1;
-  }
+@utility setting-label {
+  @apply text-neutral-100 font-medium;
+}
 
-  .toast {
-    @apply fixed bottom-8 right-8 px-6 py-4 rounded-lg text-white font-medium z-[1000];
-  }
+@utility setting-description {
+  @apply text-neutral-400 text-xs mt-1;
+}
 
-  .toast-success {
-    @apply bg-green-600;
-  }
+@utility toast {
+  @apply fixed bottom-8 right-8 px-6 py-4 rounded-lg text-white font-medium z-[1000];
+}
 
-  .toast-error {
-    @apply bg-red-600;
-  }
+@utility toast-success {
+  @apply bg-green-600;
+}
 
-  .live-badge {
-    @apply bg-red-600 text-white text-[0.65rem] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide;
-  }
+@utility toast-error {
+  @apply bg-red-600;
+}
 
-  .streamer-card {
-    @apply bg-neutral-800 border border-neutral-700 rounded-lg p-6 cursor-pointer transition-all duration-200 hover:border-purple-500 hover:-translate-y-0.5;
-  }
+@utility live-badge {
+  @apply bg-red-600 text-white text-[0.65rem] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide;
+}
 
-  .streamer-card.is-live {
-    @apply border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)];
-  }
+@utility streamer-card {
+  @apply bg-neutral-800 border border-neutral-700 rounded-lg p-6 cursor-pointer transition-all duration-200 hover:border-purple-500 hover:-translate-y-0.5;
+}
 
-  .stat-card {
-    @apply bg-neutral-800 border border-neutral-700 rounded-lg p-6 text-center;
-  }
+@utility streamer-card-live {
+  @apply border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)];
+}
 
-  .chart-container {
-    @apply bg-neutral-800 border border-neutral-700 rounded-lg p-6 mt-6;
-  }
+@utility stat-card {
+  @apply bg-neutral-800 border border-neutral-700 rounded-lg p-6 text-center;
+}
 
-  .details-panel {
-    @apply bg-neutral-800 border border-neutral-700 rounded-lg overflow-hidden;
-  }
+@utility chart-container {
+  @apply bg-neutral-800 border border-neutral-700 rounded-lg p-6 mt-6;
+}
 
-  .details-panel summary {
-    @apply px-4 py-3 cursor-pointer font-medium text-neutral-100 hover:bg-purple-500/10 transition-colors;
-  }
+@utility details-panel {
+  @apply bg-neutral-800 border border-neutral-700 rounded-lg overflow-hidden;
+}
 
-  .details-panel[open] summary {
-    @apply border-b border-neutral-700;
-  }
+@utility details-content {
+  @apply p-4;
+}
 
-  .details-content {
-    @apply p-4;
-  }
+@utility override-badge {
+  @apply bg-purple-600 text-white text-[0.65rem] px-2 py-0.5 rounded uppercase;
+}
 
-  .override-badge {
-    @apply bg-purple-600 text-white text-[0.65rem] px-2 py-0.5 rounded uppercase;
-  }
+@utility priority-item {
+  @apply flex items-center gap-3 p-3 bg-neutral-900 border border-neutral-700 rounded-md mb-2 cursor-grab;
+}
 
-  .priority-item {
-    @apply flex items-center gap-3 p-3 bg-neutral-900 border border-neutral-700 rounded-md mb-2 cursor-grab;
-  }
+@utility priority-item-dragging {
+  @apply opacity-50 border-purple-500;
+}
 
-  .priority-item.dragging {
-    @apply opacity-50 border-purple-500;
-  }
+@utility streamer-item {
+  @apply bg-neutral-900 border border-neutral-700 rounded-lg mb-2 overflow-hidden;
+}
 
-  .streamer-item {
-    @apply bg-neutral-900 border border-neutral-700 rounded-lg mb-2 overflow-hidden;
-  }
+@utility streamer-item-dragging {
+  @apply opacity-50 border-purple-500;
+}
 
-  .streamer-item.dragging {
-    @apply opacity-50 border-purple-500;
-  }
+@utility streamer-header {
+  @apply flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-purple-500/10;
+}
 
-  .streamer-header {
-    @apply flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-purple-500/10;
-  }
+/* Custom component styles that need selectors */
+.details-panel summary {
+  @apply px-4 py-3 cursor-pointer font-medium text-neutral-100 hover:bg-purple-500/10 transition-colors;
+}
+
+.details-panel[open] summary {
+  @apply border-b border-neutral-700;
+}
+
+.streamer-card.is-live {
+  @apply border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)];
+}
+
+.priority-item.dragging {
+  @apply opacity-50 border-purple-500;
+}
+
+.streamer-item.dragging {
+  @apply opacity-50 border-purple-500;
 }
