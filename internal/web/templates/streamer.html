@@ -204,17 +204,25 @@
         loadChart(startDate, endDate);
     });
     
-    loadChart(
-        document.getElementById('start-date').value,
-        document.getElementById('end-date').value
-    );
-    
-    setInterval(function() {
+    function initChart() {
         loadChart(
             document.getElementById('start-date').value,
             document.getElementById('end-date').value
         );
-    }, {{.RefreshMinutes}} * 60 * 1000);
+        
+        setInterval(function() {
+            loadChart(
+                document.getElementById('start-date').value,
+                document.getElementById('end-date').value
+            );
+        }, {{.RefreshMinutes}} * 60 * 1000);
+    }
+    
+    if (typeof ApexCharts !== 'undefined') {
+        initChart();
+    } else {
+        window.addEventListener('load', initChart);
+    }
     
     const chatState = {
         messages: [],
