@@ -4,7 +4,7 @@
 [![Release](https://github.com/PatrickWalther/twitch-miner-go/actions/workflows/release.yml/badge.svg)](https://github.com/PatrickWalther/twitch-miner-go/releases)
 [![Docker](https://img.shields.io/docker/v/thegame402/twitch-miner-go?label=docker)](https://hub.docker.com/r/thegame402/twitch-miner-go)
 
-A Go rewrite of [Twitch-Channel-Points-Miner-v2](https://github.com/rdavydov/Twitch-Channel-Points-Miner-v2), now with Discord notifications. This rewrite was done for performance and size reasons - the Docker image is over 80x smaller (only 5.5MB) and standalone binaries for all major operating systems are available at under 13MB each.
+A Go rewrite of [Twitch-Channel-Points-Miner-v2](https://github.com/rdavydov/Twitch-Channel-Points-Miner-v2), now with Discord notifications. This rewrite was done for performance and size reasons - the Docker image is over 70x smaller (only 6.1MB) and standalone binaries for all major operating systems are available at under 13MB each.
 
 This tool passively earns Twitch channel points by simulating viewer presence across multiple streams.
 
