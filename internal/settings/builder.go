@@ -43,6 +43,11 @@ func BuildRuntimeSettings(cfg *config.Config) RuntimeSettings {
 			DaysAgo:        cfg.Analytics.DaysAgo,
 			EnableChatLogs: cfg.Analytics.EnableChatLogs,
 		},
+		Discord: DiscordUIConfig{
+			Enabled:  cfg.Discord.Enabled,
+			BotToken: cfg.Discord.BotToken,
+			GuildID:  cfg.Discord.GuildID,
+		},
 	}
 }
 
@@ -85,6 +90,11 @@ func BuildDefaultSettings(currentStreamers []config.StreamerConfig) RuntimeSetti
 			DaysAgo:        defaults.Analytics.DaysAgo,
 			EnableChatLogs: defaults.Analytics.EnableChatLogs,
 		},
+		Discord: DiscordUIConfig{
+			Enabled:  defaults.Discord.Enabled,
+			BotToken: defaults.Discord.BotToken,
+			GuildID:  defaults.Discord.GuildID,
+		},
 	}
 }
 
@@ -121,6 +131,10 @@ func ApplyToConfig(cfg *config.Config, s RuntimeSettings) {
 	cfg.Analytics.Refresh = s.Analytics.Refresh
 	cfg.Analytics.DaysAgo = s.Analytics.DaysAgo
 	cfg.Analytics.EnableChatLogs = s.Analytics.EnableChatLogs
+
+	cfg.Discord.Enabled = s.Discord.Enabled
+	cfg.Discord.BotToken = s.Discord.BotToken
+	cfg.Discord.GuildID = s.Discord.GuildID
 
 	config.ValidateConfig(cfg)
 }

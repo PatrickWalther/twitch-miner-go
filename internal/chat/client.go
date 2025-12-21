@@ -17,6 +17,9 @@ type ChatLogger interface {
 	RecordChatMessage(streamer string, msg ChatMessageData) error
 }
 
+// MentionHandler is called when the user is mentioned in chat.
+type MentionHandler func(streamer, fromUser, message string)
+
 type ChatMessageData struct {
 	Username    string
 	DisplayName string
@@ -27,12 +30,13 @@ type ChatMessageData struct {
 }
 
 type IRCClient struct {
-	username  string
-	token     string
-	channel   string
-	streamer  *models.Streamer
-	logger    ChatLogger
-	logChat   bool
+	username       string
+	token          string
+	channel        string
+	streamer       *models.Streamer
+	logger         ChatLogger
+	logChat        bool
+	mentionHandler MentionHandler
 
 	conn     net.Conn
 	reader   *bufio.Reader
@@ -42,16 +46,17 @@ type IRCClient struct {
 	mu sync.RWMutex
 }
 
-func NewIRCClient(username, token string, streamer *models.Streamer, logger ChatLogger, logChat bool) *IRCClient {
+func NewIRCClient(username, token string, streamer *models.Streamer, logger ChatLogger, logChat bool, mentionHandler MentionHandler) *IRCClient {
 	slog.Debug("Creating IRC client", "channel", streamer.Username, "logChat", logChat, "hasLogger", logger != nil)
 	return &IRCClient{
-		username: username,
-		token:    token,
-		channel:  "#" + strings.ToLower(streamer.Username),
-		streamer: streamer,
-		logger:   logger,
-		logChat:  logChat,
-		stopChan: make(chan struct{}),
+		username:       username,
+		token:          token,
+		channel:        "#" + strings.ToLower(streamer.Username),
+		streamer:       streamer,
+		logger:         logger,
+		logChat:        logChat,
+		mentionHandler: mentionHandler,
+		stopChan:       make(chan struct{}),
 	}
 }
 
@@ -218,6 +223,10 @@ func (c *IRCClient) handlePrivMsg(line string) {
 			"from", nick,
 			"message", message,
 		)
+
+		if c.mentionHandler != nil {
+			c.mentionHandler(c.streamer.Username, nick, message)
+		}
 	}
 }
 

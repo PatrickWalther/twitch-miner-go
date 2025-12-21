@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/PatrickWalther/twitch-miner-go/internal/constants"
+	"github.com/gorilla/websocket"
 )
 
 type WebSocketClient struct {
@@ -21,10 +21,10 @@ type WebSocketClient struct {
 	authToken     string
 	pingInterval  int
 
-	isOpened      bool
-	isClosed      bool
+	isOpened       bool
+	isClosed       bool
 	isReconnecting bool
-	forcedClose   bool
+	forcedClose    bool
 
 	lastPong    time.Time
 	lastPing    time.Time
@@ -41,13 +41,13 @@ type WebSocketClient struct {
 
 func NewWebSocketClient(index int, authToken string, pingInterval int, onMessage func(*PubSubMessage), onError func(error)) *WebSocketClient {
 	return &WebSocketClient{
-		index:        index,
-		authToken:    authToken,
-		pingInterval: pingInterval,
-		onMessage:    onMessage,
-		onError:      onError,
-		stopChan:     make(chan struct{}),
-		topics:       make([]Topic, 0),
+		index:         index,
+		authToken:     authToken,
+		pingInterval:  pingInterval,
+		onMessage:     onMessage,
+		onError:       onError,
+		stopChan:      make(chan struct{}),
+		topics:        make([]Topic, 0),
 		pendingTopics: make([]Topic, 0),
 	}
 }

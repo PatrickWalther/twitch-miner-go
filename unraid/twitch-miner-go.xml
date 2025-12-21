@@ -48,8 +48,8 @@
       <Mode>rw</Mode>
     </Volume>
     <Volume>
-      <HostDir>/mnt/user/appdata/twitch-miner-go/analytics</HostDir>
-      <ContainerDir>/analytics</ContainerDir>
+      <HostDir>/mnt/user/appdata/twitch-miner-go/database</HostDir>
+      <ContainerDir>/database</ContainerDir>
       <Mode>rw</Mode>
     </Volume>
   </Data>
@@ -65,6 +65,6 @@
   <Config Name="Config" Target="/config" Default="/mnt/user/appdata/twitch-miner-go/config" Mode="rw" Description="Path to configuration directory. Place your config.json here." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/twitch-miner-go/config</Config>
   <Config Name="Cookies" Target="/cookies" Default="/mnt/user/appdata/twitch-miner-go/cookies" Mode="rw" Description="Path to store authentication cookies/tokens. Persists login between restarts." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/twitch-miner-go/cookies</Config>
   <Config Name="Logs" Target="/logs" Default="/mnt/user/appdata/twitch-miner-go/logs" Mode="rw" Description="Path to store log files." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/twitch-miner-go/logs</Config>
-  <Config Name="Analytics Data" Target="/analytics" Default="/mnt/user/appdata/twitch-miner-go/analytics" Mode="rw" Description="Path to store analytics data." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/twitch-miner-go/analytics</Config>
+  <Config Name="Database" Target="/database" Default="/mnt/user/appdata/twitch-miner-go/database" Mode="rw" Description="Path to store database files (analytics, notifications, etc.)." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/twitch-miner-go/database</Config>
   <Config Name="Timezone" Target="TZ" Default="America/New_York" Mode="" Description="Timezone for log timestamps." Type="Variable" Display="advanced" Required="false" Mask="false">America/New_York</Config>
 </Container>

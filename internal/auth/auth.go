@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	ErrBadCredentials   = errors.New("bad credentials")
-	ErrExpiredCode      = errors.New("device code expired")
+	ErrBadCredentials       = errors.New("bad credentials")
+	ErrExpiredCode          = errors.New("device code expired")
 	ErrAuthorizationPending = errors.New("authorization pending")
 )
 
@@ -29,11 +29,11 @@ type DeviceCodeResponse struct {
 }
 
 type TokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	ExpiresIn    int    `json:"expires_in"`
+	AccessToken  string   `json:"access_token"`
+	RefreshToken string   `json:"refresh_token"`
+	ExpiresIn    int      `json:"expires_in"`
 	Scope        []string `json:"scope"`
-	TokenType    string `json:"token_type"`
+	TokenType    string   `json:"token_type"`
 }
 
 type StoredAuth struct {

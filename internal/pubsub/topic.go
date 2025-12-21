@@ -5,13 +5,13 @@ import "fmt"
 type TopicType string
 
 const (
-	TopicCommunityPointsUser    TopicType = "community-points-user-v1"
-	TopicPredictionsUser        TopicType = "predictions-user-v1"
-	TopicVideoPlaybackByID      TopicType = "video-playback-by-id"
-	TopicRaid                   TopicType = "raid"
-	TopicPredictionsChannel     TopicType = "predictions-channel-v1"
+	TopicCommunityPointsUser     TopicType = "community-points-user-v1"
+	TopicPredictionsUser         TopicType = "predictions-user-v1"
+	TopicVideoPlaybackByID       TopicType = "video-playback-by-id"
+	TopicRaid                    TopicType = "raid"
+	TopicPredictionsChannel      TopicType = "predictions-channel-v1"
 	TopicCommunityMomentsChannel TopicType = "community-moments-channel-v1"
-	TopicCommunityPointsChannel TopicType = "community-points-channel-v1"
+	TopicCommunityPointsChannel  TopicType = "community-points-channel-v1"
 )
 
 type Topic struct {

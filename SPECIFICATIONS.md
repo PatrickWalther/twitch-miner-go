@@ -631,17 +631,32 @@ Messages can be searched via the dashboard or API endpoint.
 
 ---
 
-## Analytics System
+## Database System
 
-### Data Storage
+### Unified Database
 
-Analytics data is stored in SQLite database (`analytics/{username}/analytics.db`).
+All application data is stored in a single SQLite database (`database/{username}/miner.db`). The database uses a modular migration system that tracks schema versions per module, allowing different parts of the application to manage their own migrations independently.
 
-#### Database Schema
+#### Schema Versioning
+
+Schema versions are tracked per-module in the `schema_versions` table:
 
 ```sql
--- Schema version tracked via PRAGMA user_version
+CREATE TABLE schema_versions (
+    module TEXT PRIMARY KEY,
+    version INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL
+);
+```
 
+This design allows:
+- **Independent module migrations**: Each module (analytics, notifications, etc.) can add migrations without affecting others
+- **Future-proof extensibility**: New modules can be added without modifying existing migration code
+- **Clear version tracking**: Easy to see which version each module is at
+
+#### Analytics Module Schema
+
+```sql
 -- Streamers table
 CREATE TABLE streamers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -689,11 +704,55 @@ CREATE INDEX idx_annotations_streamer_time ON annotations(streamer_id, timestamp
 CREATE INDEX idx_chat_streamer_time ON chat_messages(streamer_id, timestamp);
 ```
 
-#### Migration from JSON
+#### Notifications Module Schema
 
-On first run after upgrade, existing JSON files are automatically migrated to SQLite and deleted upon successful import.
+```sql
+-- Notification configuration (single row)
+CREATE TABLE notification_config (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    mentions_channel_id TEXT DEFAULT '',
+    points_channel_id TEXT DEFAULT '',
+    online_channel_id TEXT DEFAULT '',
+    offline_channel_id TEXT DEFAULT '',
+    mentions_enabled INTEGER DEFAULT 0,
+    mentions_all_chats INTEGER DEFAULT 1,
+    mentions_streamers TEXT DEFAULT '[]',
+    online_enabled INTEGER DEFAULT 0,
+    online_all_streamers INTEGER DEFAULT 1,
+    online_streamers TEXT DEFAULT '[]',
+    offline_enabled INTEGER DEFAULT 0,
+    offline_all_streamers INTEGER DEFAULT 1,
+    offline_streamers TEXT DEFAULT '[]'
+);
+
+-- Point notification rules
+CREATE TABLE point_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    streamer TEXT NOT NULL,
+    threshold INTEGER NOT NULL,
+    delete_on_trigger INTEGER DEFAULT 0,
+    triggered INTEGER DEFAULT 0
+);
+```
+
+#### Migration from Legacy Databases
+
+On startup, the application automatically migrates data from legacy database files:
+- `analytics/{username}/analytics.db` → migrated to unified database
+- `analytics/{username}/notifications.db` → migrated to unified database
+- `analytics/{username}/*.json` → migrated to unified database
+
+Legacy files are deleted after successful migration.
 
 **Note**: All timestamps are Unix timestamps in milliseconds.
+
+---
+
+## Analytics System
+
+### Data Storage
+
+Analytics data is stored in the unified database (`database/{username}/miner.db`) under the analytics module.
 
 ### Event Types for Series
 
@@ -965,9 +1024,9 @@ application/
 │   └── {username}.pkl        # Authentication tokens (pickle format)
 ├── logs/
 │   └── {username}.log        # Log files (7-day rotation)
-└── analytics/
+└── database/
     └── {username}/
-        └── analytics.db      # SQLite database (points, annotations, chat)
+        └── miner.db          # Unified SQLite database (analytics, notifications, etc.)
 ```
 
 ---
@@ -997,6 +1056,62 @@ Defaults are tuned to match the Python miner. Random jitter is applied to avoid 
 
 ---
 
+## Notification System
+
+The miner supports Discord notifications for various events. The notification system is designed with a provider interface allowing future extension to other notification services (Telegram, Slack, etc.).
+
+### Discord Integration
+
+Discord notifications require a Discord bot. Configuration is stored in the config file (connection settings only), while notification rules are stored in the SQLite database.
+
+#### Configuration
+
+| Setting | Type | Description |
+|---------|------|-------------|
+| `discord.enabled` | bool | Enable/disable Discord notifications (requires restart) |
+| `discord.botToken` | string | Discord bot token |
+| `discord.guildId` | string | Discord server (guild) ID |
+
+#### Notification Types
+
+| Type | Description | Configuration |
+|------|-------------|---------------|
+| **Chat Mentions** | Notifies when someone mentions you in chat | Enable globally or per-streamer |
+| **Point Goals** | Notifies when reaching a point threshold | Per-streamer rules with threshold, can be one-time or recurring |
+| **Stream Online** | Notifies when a streamer goes live | Enable globally or per-streamer |
+| **Stream Offline** | Notifies when a streamer goes offline | Enable globally or per-streamer |
+
+#### Point Goal Rules
+
+Point notification rules are stored in the database with the following structure:
+
+```
+PointRule
+├── id: int64
+├── streamer: string
+├── threshold: int
+├── deleteOnTrigger: bool
+└── triggered: bool
+```
+
+- **Threshold crossing**: Notifications only fire when points cross the threshold (going from below to above)
+- **Recurring rules**: If `deleteOnTrigger` is false, the rule resets when points drop below the threshold
+- **One-time rules**: If `deleteOnTrigger` is true, the rule is deleted after triggering
+
+### API Endpoints (Notifications)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/notifications` | GET | Notifications management page |
+| `/api/notifications/config` | GET | Get notification configuration |
+| `/api/notifications/config` | POST | Update notification configuration |
+| `/api/notifications/channels` | GET | List available Discord channels |
+| `/api/notifications/points` | GET | List point notification rules |
+| `/api/notifications/points` | POST | Add a point notification rule |
+| `/api/notifications/points/{id}` | DELETE | Delete a point notification rule |
+
+---
+
 ## Security Considerations
 
 - OAuth tokens stored locally can access account
@@ -1004,3 +1119,4 @@ Defaults are tuned to match the Python miner. Random jitter is applied to avoid 
 - SSL verification should remain enabled
 - Bot detection possible via integrity token
 - Uses TV client to appear as legitimate device
+- Discord bot tokens should be kept secret and not shared

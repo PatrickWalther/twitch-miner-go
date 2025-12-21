@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	"github.com/PatrickWalther/twitch-miner-go/internal/analytics"
 	"github.com/PatrickWalther/twitch-miner-go/internal/config"
+	"github.com/PatrickWalther/twitch-miner-go/internal/database"
 	"github.com/PatrickWalther/twitch-miner-go/internal/logger"
 	"github.com/PatrickWalther/twitch-miner-go/internal/miner"
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
@@ -65,12 +67,20 @@ func main() {
 	slog.Info("Twitch Channel Points Miner", "version", version.Version)
 
 	var analyticsServer *analytics.AnalyticsServer
+	var db *database.DB
 	if cfg.EnableAnalytics {
-		if err := os.MkdirAll("analytics", 0755); err != nil {
-			slog.Error("Failed to create analytics directory", "error", err)
+		dbBasePath := filepath.Join("database", cfg.Username)
+		if err := os.MkdirAll(dbBasePath, 0755); err != nil {
+			slog.Error("Failed to create database directory", "error", err)
 			os.Exit(1)
 		}
-		analyticsServer = analytics.NewAnalyticsServerEarly(cfg.Analytics, cfg.Username)
+		db, err = database.Open(dbBasePath)
+		if err != nil {
+			slog.Error("Failed to open database", "error", err)
+			os.Exit(1)
+		}
+		defer db.Close()
+		analyticsServer = analytics.NewAnalyticsServerEarly(cfg.Analytics, cfg.Username, dbBasePath, db)
 		if analyticsServer != nil {
 			analyticsServer.Start()
 			defer analyticsServer.Stop()

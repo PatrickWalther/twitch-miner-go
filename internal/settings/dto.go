@@ -10,6 +10,14 @@ type RuntimeSettings struct {
 	RateLimits      RateLimitSettings      `json:"rateLimits"`
 	Logger          LoggerSettings         `json:"logger"`
 	Analytics       AnalyticsUIConfig      `json:"analytics"`
+	Discord         DiscordUIConfig        `json:"discord"`
+}
+
+// DiscordUIConfig contains Discord integration settings for the UI.
+type DiscordUIConfig struct {
+	Enabled  bool   `json:"enabled"`
+	BotToken string `json:"botToken"`
+	GuildID  string `json:"guildId"`
 }
 
 // RateLimitSettings contains timing intervals for various miner operations.

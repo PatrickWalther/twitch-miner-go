@@ -1,12 +1,14 @@
 package miner
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -17,8 +19,10 @@ import (
 	"github.com/PatrickWalther/twitch-miner-go/internal/auth"
 	"github.com/PatrickWalther/twitch-miner-go/internal/chat"
 	"github.com/PatrickWalther/twitch-miner-go/internal/config"
+	"github.com/PatrickWalther/twitch-miner-go/internal/database"
 	"github.com/PatrickWalther/twitch-miner-go/internal/drops"
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
+	"github.com/PatrickWalther/twitch-miner-go/internal/notifications"
 	"github.com/PatrickWalther/twitch-miner-go/internal/pubsub"
 	"github.com/PatrickWalther/twitch-miner-go/internal/settings"
 	"github.com/PatrickWalther/twitch-miner-go/internal/watcher"
@@ -31,15 +35,18 @@ type Miner struct {
 	client     *api.TwitchClient
 	streamers  []*models.Streamer
 
-	wsPool       *pubsub.WebSocketPool
-	chatManager  *chat.ChatManager
-	watcher      *watcher.MinuteWatcher
-	dropsTracker *drops.DropsTracker
-	analytics    *analytics.AnalyticsServer
+	db            *database.DB
+	dbBasePath    string
+	wsPool        *pubsub.WebSocketPool
+	chatManager   *chat.ChatManager
+	watcher       *watcher.MinuteWatcher
+	dropsTracker  *drops.DropsTracker
+	analytics     *analytics.AnalyticsServer
+	notifications *notifications.Manager
 
-	deviceID         string
-	running          bool
-	stopChan         chan struct{}
+	deviceID          string
+	running           bool
+	stopChan          chan struct{}
 	externalAnalytics bool
 
 	mu sync.RWMutex
@@ -97,11 +104,16 @@ func (m *Miner) initialize() error {
 		return fmt.Errorf("failed to create logs directory: %w", err)
 	}
 
-	if m.config.EnableAnalytics {
-		if err := os.MkdirAll("analytics", 0755); err != nil {
-			return fmt.Errorf("failed to create analytics directory: %w", err)
-		}
+	m.dbBasePath = filepath.Join("database", m.config.Username)
+	if err := os.MkdirAll(m.dbBasePath, 0755); err != nil {
+		return fmt.Errorf("failed to create database directory: %w", err)
 	}
+
+	db, err := database.Open(m.dbBasePath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	m.db = db
 
 	return nil
 }
@@ -199,6 +211,7 @@ func (m *Miner) loadStreamers() error {
 func (m *Miner) setupComponents() {
 	m.wsPool = pubsub.NewWebSocketPool(m.client, m.auth.GetAuthToken(), m.streamers, m.config.RateLimits)
 	m.wsPool.SetMessageHandler(m.handlePubSubMessage)
+	m.wsPool.SetStatusHandler(m.handleStatusChange)
 
 	if m.config.EnableAnalytics {
 		if m.externalAnalytics && m.analytics != nil {
@@ -209,6 +222,8 @@ func (m *Miner) setupComponents() {
 			m.analytics = analytics.NewAnalyticsServer(
 				m.config.Analytics,
 				m.config.Username,
+				m.dbBasePath,
+				m.db,
 				m.streamers,
 			)
 			if m.analytics != nil {
@@ -218,13 +233,49 @@ func (m *Miner) setupComponents() {
 		}
 	}
 
+	var streamerNames []string
+	for _, st := range m.streamers {
+		streamerNames = append(streamerNames, st.Username)
+	}
+
+	if m.config.Discord.Enabled {
+		notifMgr, err := notifications.NewManager(&m.config.Discord, m.db, m.dbBasePath, streamerNames)
+		if err != nil {
+			slog.Error("Failed to create notification manager", "error", err)
+		} else {
+			m.notifications = notifMgr
+
+			streamerPoints := make(map[string]int)
+			for _, st := range m.streamers {
+				streamerPoints[st.Username] = st.GetChannelPoints()
+			}
+			m.notifications.InitializePointsTracking(streamerPoints)
+
+			if err := m.notifications.Start(context.Background()); err != nil {
+				slog.Error("Failed to start notification manager", "error", err)
+			}
+		}
+	}
+
+	if m.analytics != nil {
+		m.analytics.SetDiscordEnabled(m.config.Discord.Enabled)
+		if m.notifications != nil {
+			m.analytics.SetNotificationManager(m.notifications)
+		}
+	}
+
+	var mentionHandler chat.MentionHandler
+	if m.notifications != nil {
+		mentionHandler = m.notifications.NotifyMention
+	}
+
 	var chatLogger chat.ChatLogger
 	chatLogsEnabled := m.config.EnableAnalytics && m.config.Analytics.EnableChatLogs
 	slog.Debug("Chat logging config", "enableAnalytics", m.config.EnableAnalytics, "enableChatLogs", m.config.Analytics.EnableChatLogs, "chatLogsEnabled", chatLogsEnabled)
 	if chatLogsEnabled && m.analytics != nil {
 		chatLogger = analytics.NewChatLoggerAdapter(m.analytics)
 	}
-	m.chatManager = chat.NewChatManager(m.config.Username, m.auth.GetAuthToken(), chatLogger, chatLogsEnabled)
+	m.chatManager = chat.NewChatManager(m.config.Username, m.auth.GetAuthToken(), chatLogger, chatLogsEnabled, mentionHandler)
 
 	m.watcher = watcher.NewMinuteWatcher(
 		m.client,
@@ -325,31 +376,38 @@ func (m *Miner) streamCheckLoop() {
 }
 
 func (m *Miner) handlePubSubMessage(msg *pubsub.PubSubMessage, streamer *models.Streamer) {
-	if m.analytics == nil {
-		return
-	}
-
 	switch msg.Topic.Type {
 	case pubsub.TopicCommunityPointsUser:
 		if msg.Type == "points-earned" {
 			if data := msg.Data; data != nil {
 				if pointGain, ok := data["point_gain"].(map[string]interface{}); ok {
 					if reasonCode, ok := pointGain["reason_code"].(string); ok {
-						m.analytics.RecordPoints(streamer, reasonCode)
+						if m.analytics != nil {
+							m.analytics.RecordPoints(streamer, reasonCode)
 
-						if reasonCode == "WATCH_STREAK" {
-							if earned, ok := pointGain["total_points"].(float64); ok {
-								m.analytics.RecordAnnotation(streamer, "WATCH_STREAK", fmt.Sprintf("+%d - Watch Streak", int(earned)))
+							if reasonCode == "WATCH_STREAK" {
+								if earned, ok := pointGain["total_points"].(float64); ok {
+									m.analytics.RecordAnnotation(streamer, "WATCH_STREAK", fmt.Sprintf("+%d - Watch Streak", int(earned)))
+								}
 							}
 						}
 					}
 				}
 			}
+
+			if m.notifications != nil {
+				m.notifications.NotifyPointsReached(streamer.Username, streamer.GetChannelPoints())
+			}
 		} else if msg.Type == "points-spent" {
-			m.analytics.RecordPoints(streamer, "Spent")
+			if m.analytics != nil {
+				m.analytics.RecordPoints(streamer, "Spent")
+			}
 		}
 
 	case pubsub.TopicPredictionsUser:
+		if m.analytics == nil {
+			return
+		}
 		if msg.Type == "prediction-made" {
 			m.analytics.RecordAnnotation(streamer, "PREDICTION_MADE", "Prediction placed")
 		} else if msg.Type == "prediction-result" {
@@ -363,6 +421,18 @@ func (m *Miner) handlePubSubMessage(msg *pubsub.PubSubMessage, streamer *models.
 				}
 			}
 		}
+	}
+}
+
+func (m *Miner) handleStatusChange(streamer string, online bool) {
+	if m.notifications == nil {
+		return
+	}
+
+	if online {
+		m.notifications.NotifyOnline(streamer)
+	} else {
+		m.notifications.NotifyOffline(streamer)
 	}
 }
 
@@ -394,6 +464,14 @@ func (m *Miner) stop() {
 
 	if m.analytics != nil {
 		m.analytics.Stop()
+	}
+
+	if m.notifications != nil {
+		m.notifications.Stop()
+	}
+
+	if m.db != nil {
+		m.db.Close()
 	}
 
 	m.printSessionReport()
@@ -452,8 +530,8 @@ func (m *Miner) GetDefaultSettings() settings.RuntimeSettings {
 // on the active streaming connections.
 func (m *Miner) ApplySettings(s settings.RuntimeSettings) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 
+	oldDiscordEnabled := m.config.Discord.Enabled
 	settings.ApplyToConfig(m.config, s)
 
 	if m.watcher != nil {
@@ -473,6 +551,51 @@ func (m *Miner) ApplySettings(s settings.RuntimeSettings) {
 		}
 	}
 
+	discordCfg := m.config.Discord
+	notifMgr := m.notifications
+	analytics := m.analytics
+
+	m.mu.Unlock()
+
+	if notifMgr != nil {
+		if err := notifMgr.UpdateDiscordConfig(&discordCfg); err != nil {
+			slog.Error("Failed to update Discord config", "error", err)
+		}
+	} else if discordCfg.Enabled && !oldDiscordEnabled {
+		var streamerNames []string
+		for _, st := range m.streamers {
+			streamerNames = append(streamerNames, st.Username)
+		}
+
+		newNotifMgr, err := notifications.NewManager(&discordCfg, m.db, m.dbBasePath, streamerNames)
+		if err != nil {
+			slog.Error("Failed to create notification manager", "error", err)
+		} else {
+			m.mu.Lock()
+			m.notifications = newNotifMgr
+			m.mu.Unlock()
+
+			streamerPoints := make(map[string]int)
+			for _, st := range m.streamers {
+				streamerPoints[st.Username] = st.GetChannelPoints()
+			}
+			newNotifMgr.InitializePointsTracking(streamerPoints)
+
+			if err := newNotifMgr.Start(context.Background()); err != nil {
+				slog.Error("Failed to start notification manager", "error", err)
+			}
+
+			if analytics != nil {
+				analytics.SetNotificationManager(newNotifMgr)
+			}
+		}
+	}
+
+	if analytics != nil {
+		analytics.SetDiscordEnabled(discordCfg.Enabled)
+	}
+
+	m.mu.Lock()
 	if m.configPath != "" {
 		if err := config.SaveConfig(m.configPath, m.config); err != nil {
 			slog.Error("Failed to save config", "error", err)
@@ -480,6 +603,7 @@ func (m *Miner) ApplySettings(s settings.RuntimeSettings) {
 			slog.Info("Settings saved to config file")
 		}
 	}
+	m.mu.Unlock()
 
 	slog.Info("Runtime settings updated")
 }

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"github.com/PatrickWalther/twitch-miner-go/internal/database"
 )
 
 type Repository interface {
@@ -26,108 +26,206 @@ type Repository interface {
 }
 
 type SQLiteRepository struct {
-	db       *sql.DB
+	db       *database.DB
 	basePath string
 }
 
-const schemaVersion = 2
+type AnalyticsModule struct{}
 
-func NewSQLiteRepository(basePath string) (*SQLiteRepository, error) {
-	if err := os.MkdirAll(basePath, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create analytics directory: %w", err)
+func (m *AnalyticsModule) Name() string {
+	return "analytics"
+}
+
+func (m *AnalyticsModule) Migrations() []database.Migration {
+	return []database.Migration{
+		{
+			Version:     1,
+			Description: "Create streamers, points, and annotations tables",
+			SQL: `
+				CREATE TABLE IF NOT EXISTS streamers (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					name TEXT UNIQUE NOT NULL,
+					created_at INTEGER NOT NULL
+				);
+
+				CREATE TABLE IF NOT EXISTS points (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					streamer_id INTEGER NOT NULL,
+					timestamp INTEGER NOT NULL,
+					points INTEGER NOT NULL,
+					event_type TEXT,
+					FOREIGN KEY (streamer_id) REFERENCES streamers(id)
+				);
+
+				CREATE TABLE IF NOT EXISTS annotations (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					streamer_id INTEGER NOT NULL,
+					timestamp INTEGER NOT NULL,
+					text TEXT NOT NULL,
+					color TEXT NOT NULL,
+					FOREIGN KEY (streamer_id) REFERENCES streamers(id)
+				);
+
+				CREATE INDEX IF NOT EXISTS idx_points_streamer_time ON points(streamer_id, timestamp);
+				CREATE INDEX IF NOT EXISTS idx_annotations_streamer_time ON annotations(streamer_id, timestamp);
+			`,
+		},
+		{
+			Version:     2,
+			Description: "Create chat_messages table",
+			SQL: `
+				CREATE TABLE IF NOT EXISTS chat_messages (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					streamer_id INTEGER NOT NULL,
+					timestamp INTEGER NOT NULL,
+					username TEXT NOT NULL,
+					display_name TEXT NOT NULL,
+					message TEXT NOT NULL,
+					emotes TEXT,
+					badges TEXT,
+					color TEXT,
+					FOREIGN KEY (streamer_id) REFERENCES streamers(id)
+				);
+
+				CREATE INDEX IF NOT EXISTS idx_chat_streamer_time ON chat_messages(streamer_id, timestamp);
+			`,
+		},
 	}
+}
 
-	dbPath := filepath.Join(basePath, "analytics.db")
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+func NewSQLiteRepository(db *database.DB, basePath string) (*SQLiteRepository, error) {
+	module := &AnalyticsModule{}
+	if err := db.RegisterModule(module); err != nil {
+		return nil, fmt.Errorf("failed to register analytics module: %w", err)
 	}
-
-	db.SetMaxOpenConns(1)
 
 	repo := &SQLiteRepository{
 		db:       db,
 		basePath: basePath,
 	}
 
-	if err := repo.migrate(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to migrate database: %w", err)
-	}
-
 	if err := repo.migrateFromJSON(); err != nil {
 		slog.Warn("JSON migration had errors", "error", err)
+	}
+
+	if err := repo.migrateFromOldDB(); err != nil {
+		slog.Warn("Old database migration had errors", "error", err)
 	}
 
 	return repo, nil
 }
 
-func (r *SQLiteRepository) migrate() error {
-	var version int
-	err := r.db.QueryRow("PRAGMA user_version").Scan(&version)
+func (r *SQLiteRepository) migrateFromOldDB() error {
+	oldDBPath := filepath.Join(r.basePath, "analytics.db")
+	if _, err := os.Stat(oldDBPath); os.IsNotExist(err) {
+		return nil
+	}
+
+	slog.Info("Migrating data from old analytics.db")
+
+	oldDB, err := sql.Open("sqlite", oldDBPath)
+	if err != nil {
+		return fmt.Errorf("failed to open old database: %w", err)
+	}
+	defer oldDB.Close()
+
+	var count int
+	err = oldDB.QueryRow("SELECT COUNT(*) FROM streamers").Scan(&count)
+	if err != nil || count == 0 {
+		os.Remove(oldDBPath)
+		return nil
+	}
+
+	rows, err := oldDB.Query("SELECT name, created_at FROM streamers")
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 
-	if version < 1 {
-		_, err = r.db.Exec(`
-			CREATE TABLE IF NOT EXISTS streamers (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				name TEXT UNIQUE NOT NULL,
-				created_at INTEGER NOT NULL
-			);
-
-			CREATE TABLE IF NOT EXISTS points (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				streamer_id INTEGER NOT NULL,
-				timestamp INTEGER NOT NULL,
-				points INTEGER NOT NULL,
-				event_type TEXT,
-				FOREIGN KEY (streamer_id) REFERENCES streamers(id)
-			);
-
-			CREATE TABLE IF NOT EXISTS annotations (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				streamer_id INTEGER NOT NULL,
-				timestamp INTEGER NOT NULL,
-				text TEXT NOT NULL,
-				color TEXT NOT NULL,
-				FOREIGN KEY (streamer_id) REFERENCES streamers(id)
-			);
-
-			CREATE INDEX IF NOT EXISTS idx_points_streamer_time ON points(streamer_id, timestamp);
-			CREATE INDEX IF NOT EXISTS idx_annotations_streamer_time ON annotations(streamer_id, timestamp);
-		`)
-		if err != nil {
-			return err
+	for rows.Next() {
+		var name string
+		var createdAt int64
+		if err := rows.Scan(&name, &createdAt); err != nil {
+			continue
 		}
-		version = 1
+
+		var existingID int64
+		err := r.db.QueryRow("SELECT id FROM streamers WHERE name = ?", name).Scan(&existingID)
+		if err == nil {
+			continue
+		}
+
+		tx, err := r.db.Begin()
+		if err != nil {
+			continue
+		}
+
+		result, err := tx.Exec("INSERT INTO streamers (name, created_at) VALUES (?, ?)", name, createdAt)
+		if err != nil {
+			tx.Rollback()
+			continue
+		}
+
+		newStreamerID, _ := result.LastInsertId()
+
+		var oldStreamerID int64
+		oldDB.QueryRow("SELECT id FROM streamers WHERE name = ?", name).Scan(&oldStreamerID)
+
+		pointRows, _ := oldDB.Query("SELECT timestamp, points, event_type FROM points WHERE streamer_id = ?", oldStreamerID)
+		if pointRows != nil {
+			for pointRows.Next() {
+				var ts, pts int64
+				var eventType sql.NullString
+				if err := pointRows.Scan(&ts, &pts, &eventType); err == nil {
+					tx.Exec("INSERT INTO points (streamer_id, timestamp, points, event_type) VALUES (?, ?, ?, ?)",
+						newStreamerID, ts, pts, eventType.String)
+				}
+			}
+			pointRows.Close()
+		}
+
+		annotationRows, _ := oldDB.Query("SELECT timestamp, text, color FROM annotations WHERE streamer_id = ?", oldStreamerID)
+		if annotationRows != nil {
+			for annotationRows.Next() {
+				var ts int64
+				var text, color string
+				if err := annotationRows.Scan(&ts, &text, &color); err == nil {
+					tx.Exec("INSERT INTO annotations (streamer_id, timestamp, text, color) VALUES (?, ?, ?, ?)",
+						newStreamerID, ts, text, color)
+				}
+			}
+			annotationRows.Close()
+		}
+
+		chatRows, _ := oldDB.Query("SELECT timestamp, username, display_name, message, emotes, badges, color FROM chat_messages WHERE streamer_id = ?", oldStreamerID)
+		if chatRows != nil {
+			for chatRows.Next() {
+				var ts int64
+				var username, displayName, message string
+				var emotes, badges, chatColor sql.NullString
+				if err := chatRows.Scan(&ts, &username, &displayName, &message, &emotes, &badges, &chatColor); err == nil {
+					tx.Exec("INSERT INTO chat_messages (streamer_id, timestamp, username, display_name, message, emotes, badges, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+						newStreamerID, ts, username, displayName, message, emotes.String, badges.String, chatColor.String)
+				}
+			}
+			chatRows.Close()
+		}
+
+		if err := tx.Commit(); err != nil {
+			slog.Warn("Failed to migrate streamer", "name", name, "error", err)
+			continue
+		}
+
+		slog.Info("Migrated streamer from old database", "name", name)
 	}
 
-	if version < 2 {
-		_, err = r.db.Exec(`
-			CREATE TABLE IF NOT EXISTS chat_messages (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				streamer_id INTEGER NOT NULL,
-				timestamp INTEGER NOT NULL,
-				username TEXT NOT NULL,
-				display_name TEXT NOT NULL,
-				message TEXT NOT NULL,
-				emotes TEXT,
-				badges TEXT,
-				color TEXT,
-				FOREIGN KEY (streamer_id) REFERENCES streamers(id)
-			);
-
-			CREATE INDEX IF NOT EXISTS idx_chat_streamer_time ON chat_messages(streamer_id, timestamp);
-		`)
-		if err != nil {
-			return err
-		}
+	if err := os.Remove(oldDBPath); err != nil {
+		slog.Warn("Failed to delete old analytics.db", "error", err)
+	} else {
+		slog.Info("Deleted old analytics.db after successful migration")
 	}
 
-	_, err = r.db.Exec(fmt.Sprintf("PRAGMA user_version = %d", schemaVersion))
-	return err
+	return nil
 }
 
 func (r *SQLiteRepository) migrateFromJSON() error {
@@ -520,5 +618,5 @@ func (r *SQLiteRepository) SearchChatMessages(streamer string, query string, lim
 }
 
 func (r *SQLiteRepository) Close() error {
-	return r.db.Close()
+	return nil
 }

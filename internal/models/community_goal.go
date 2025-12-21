@@ -8,14 +8,14 @@ const (
 )
 
 type CommunityGoal struct {
-	GoalID                        string
-	Title                         string
-	Description                   string
-	Status                        CommunityGoalStatus
-	PointsContributed             int
-	GoalAmount                    int
-	PerStreamUserMaxContribution  int
-	IsInStock                     bool
+	GoalID                       string
+	Title                        string
+	Description                  string
+	Status                       CommunityGoalStatus
+	PointsContributed            int
+	GoalAmount                   int
+	PerStreamUserMaxContribution int
+	IsInStock                    bool
 }
 
 func (g *CommunityGoal) AmountLeft() int {

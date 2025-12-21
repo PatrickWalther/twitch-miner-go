@@ -116,7 +116,7 @@
                 <div class="setting-label">Less Verbose</div>
                 <div class="setting-description">Reduce log output verbosity</div>
             </div>
-            <input type="checkbox" role="switch" class="setting-input" id="less">
+            <input type="checkbox" role="switch" id="less">
         </div>
         
         <div class="setting-row">
@@ -124,7 +124,7 @@
                 <div class="setting-label">Colored Output</div>
                 <div class="setting-description">Enable colored console output</div>
             </div>
-            <input type="checkbox" role="switch" class="setting-input" id="colored">
+            <input type="checkbox" role="switch" id="colored">
         </div>
     </details>
 
@@ -151,7 +151,53 @@
                 <div class="setting-label">Enable Chat Logs</div>
                 <div class="setting-description">Log chat messages to database</div>
             </div>
-            <input type="checkbox" role="switch" class="setting-input" id="enableChatLogs">
+            <input type="checkbox" role="switch" id="enableChatLogs">
+        </div>
+    </details>
+
+    <details id="discord-settings">
+        <summary>Discord Integration</summary>
+        <p><small>Configure Discord notifications. You'll need to create a Discord bot and add it to your server.</small></p>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Enable Discord Notifications</div>
+                <div class="setting-description">Turn on Discord integration (requires restart after enabling)</div>
+            </div>
+            <input type="checkbox" role="switch" id="discordEnabled">
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Bot Token</div>
+                <div class="setting-description">Your Discord bot token (keep this secret!)</div>
+            </div>
+            <input type="password" class="setting-input" id="discordBotToken" style="width: 300px; min-width: 300px; max-width: 300px;" placeholder="••••••••">
+        </div>
+        
+        <div class="setting-row">
+            <div>
+                <div class="setting-label">Guild ID</div>
+                <div class="setting-description">Your Discord server ID</div>
+            </div>
+            <input type="text" class="setting-input" id="discordGuildId" style="width: 200px; min-width: 200px; max-width: 200px;" placeholder="123456789012345678">
+        </div>
+        
+        <div style="background: #0e0e10; border: 1px solid #303033; border-radius: 0.5rem; padding: 1rem; margin-top: 1rem;">
+            <div style="color: #efeff1; font-weight: 500; margin-bottom: 0.75rem;">How to create a Discord bot:</div>
+            <ol style="color: #adadb8; font-size: 0.875rem; margin: 0; padding-left: 1.25rem;">
+                <li>Go to the <a href="https://discord.com/developers/applications" target="_blank" style="color: var(--twitch-purple);">Discord Developer Portal</a></li>
+                <li>Click <strong>New Application</strong> and give it a name</li>
+                <li>Go to <strong>Bot</strong> section → Click <strong>Reset Token</strong> and copy it</li>
+                <li>Enable <strong>Message Content Intent</strong> under Privileged Gateway Intents</li>
+                <li>Go to <strong>OAuth2 → URL Generator</strong></li>
+                <li>Select <strong>bot</strong> scope with <strong>Send Messages</strong> and <strong>Read Message History</strong> permissions</li>
+                <li>Copy the generated URL and open it to add the bot to your server</li>
+            </ol>
+            <div style="color: #efeff1; font-weight: 500; margin: 0.75rem 0 0.5rem 0;">How to find your Guild (Server) ID:</div>
+            <p style="color: #adadb8; font-size: 0.875rem; margin: 0;">
+                See <a href="https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID" target="_blank" style="color: var(--twitch-purple);">Discord's guide</a> on finding your Server ID.
+            </p>
         </div>
     </details>
 
@@ -251,6 +297,13 @@
         document.getElementById('refresh').value = settings.analytics.refresh;
         document.getElementById('daysAgo').value = settings.analytics.daysAgo;
         document.getElementById('enableChatLogs').checked = settings.analytics.enableChatLogs;
+
+        // Discord
+        if (settings.discord) {
+            document.getElementById('discordEnabled').checked = settings.discord.enabled;
+            document.getElementById('discordBotToken').value = settings.discord.botToken || '';
+            document.getElementById('discordGuildId').value = settings.discord.guildId || '';
+        }
     }
 
     function populateStreamerList(streamers) {
@@ -310,42 +363,42 @@
                     <div class="setting-label">Make Predictions</div>
                     <div class="setting-description">Automatically bet on predictions</div>
                 </div>
-                <input type="checkbox" role="switch" class="setting-input" data-field="makePredictions" data-prefix="${prefix}" ${checkboxAttrs('makePredictions', settings.makePredictions)}>
+                <input type="checkbox" role="switch" data-field="makePredictions" data-prefix="${prefix}" ${checkboxAttrs('makePredictions', settings.makePredictions)}>
             </div>
             <div class="setting-row">
                 <div>
                     <div class="setting-label">Follow Raid</div>
                     <div class="setting-description">Follow when streamer raids another channel</div>
                 </div>
-                <input type="checkbox" role="switch" class="setting-input" data-field="followRaid" data-prefix="${prefix}" ${checkboxAttrs('followRaid', settings.followRaid)}>
+                <input type="checkbox" role="switch" data-field="followRaid" data-prefix="${prefix}" ${checkboxAttrs('followRaid', settings.followRaid)}>
             </div>
             <div class="setting-row">
                 <div>
                     <div class="setting-label">Claim Drops</div>
                     <div class="setting-description">Automatically claim drop rewards</div>
                 </div>
-                <input type="checkbox" role="switch" class="setting-input" data-field="claimDrops" data-prefix="${prefix}" ${checkboxAttrs('claimDrops', settings.claimDrops)}>
+                <input type="checkbox" role="switch" data-field="claimDrops" data-prefix="${prefix}" ${checkboxAttrs('claimDrops', settings.claimDrops)}>
             </div>
             <div class="setting-row">
                 <div>
                     <div class="setting-label">Claim Moments</div>
                     <div class="setting-description">Claim channel moments</div>
                 </div>
-                <input type="checkbox" role="switch" class="setting-input" data-field="claimMoments" data-prefix="${prefix}" ${checkboxAttrs('claimMoments', settings.claimMoments)}>
+                <input type="checkbox" role="switch" data-field="claimMoments" data-prefix="${prefix}" ${checkboxAttrs('claimMoments', settings.claimMoments)}>
             </div>
             <div class="setting-row">
                 <div>
                     <div class="setting-label">Watch Streak</div>
                     <div class="setting-description">Maintain watch streak bonus</div>
                 </div>
-                <input type="checkbox" role="switch" class="setting-input" data-field="watchStreak" data-prefix="${prefix}" ${checkboxAttrs('watchStreak', settings.watchStreak)}>
+                <input type="checkbox" role="switch" data-field="watchStreak" data-prefix="${prefix}" ${checkboxAttrs('watchStreak', settings.watchStreak)}>
             </div>
             <div class="setting-row">
                 <div>
                     <div class="setting-label">Community Goals</div>
                     <div class="setting-description">Contribute to community goals</div>
                 </div>
-                <input type="checkbox" role="switch" class="setting-input" data-field="communityGoals" data-prefix="${prefix}" ${checkboxAttrs('communityGoals', settings.communityGoals)}>
+                <input type="checkbox" role="switch" data-field="communityGoals" data-prefix="${prefix}" ${checkboxAttrs('communityGoals', settings.communityGoals)}>
             </div>
             <div class="setting-row">
                 <div>
@@ -401,7 +454,7 @@
                     <div class="setting-label">Stealth Mode</div>
                     <div class="setting-description">Bet slightly less than top predictor</div>
                 </div>
-                <input type="checkbox" role="switch" class="setting-input" data-field="bet.stealthMode" data-prefix="${prefix}" ${checkboxAttrs('stealthMode', bet.stealthMode)}>
+                <input type="checkbox" role="switch" data-field="bet.stealthMode" data-prefix="${prefix}" ${checkboxAttrs('stealthMode', bet.stealthMode)}>
             </div>
             <div class="setting-row">
                 <div>
@@ -535,6 +588,11 @@
                 refresh: parseInt(document.getElementById('refresh').value),
                 daysAgo: parseInt(document.getElementById('daysAgo').value),
                 enableChatLogs: document.getElementById('enableChatLogs').checked
+            },
+            discord: {
+                enabled: document.getElementById('discordEnabled').checked,
+                botToken: document.getElementById('discordBotToken').value,
+                guildId: document.getElementById('discordGuildId').value
             }
         };
     }
@@ -602,6 +660,8 @@
         saveBtn.disabled = true;
         saveBtn.textContent = 'Saving...';
 
+        const oldDiscordEnabled = currentSettings?.discord?.enabled || false;
+
         try {
             const data = gatherFormData();
             const response = await fetch('/api/settings', {
@@ -613,6 +673,15 @@
             if (!response.ok) {
                 const error = await response.text();
                 throw new Error(error);
+            }
+
+            const newDiscordEnabled = data.discord?.enabled || false;
+            
+            if (oldDiscordEnabled !== newDiscordEnabled) {
+                showToast('Settings saved! Reloading...');
+                sessionStorage.removeItem('miner_loaded_' + window.location.pathname);
+                setTimeout(() => window.location.reload(), 500);
+                return;
             }
 
             showToast('Settings saved successfully!');

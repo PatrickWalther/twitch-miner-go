@@ -4,7 +4,7 @@
 [![Release](https://github.com/PatrickWalther/twitch-miner-go/actions/workflows/release.yml/badge.svg)](https://github.com/PatrickWalther/twitch-miner-go/releases)
 [![Docker](https://img.shields.io/docker/v/thegame402/twitch-miner-go?label=docker)](https://hub.docker.com/r/thegame402/twitch-miner-go)
 
-A Go rewrite of [Twitch-Channel-Points-Miner-v2](https://github.com/rdavydov/Twitch-Channel-Points-Miner-v2), including most features except notifications. This rewrite was done for performance and size reasons - the Docker image is over 80x smaller (only 5.5MB) and standalone binaries for all major operating systems are available at under 13MB each.
+A Go rewrite of [Twitch-Channel-Points-Miner-v2](https://github.com/rdavydov/Twitch-Channel-Points-Miner-v2), now with Discord notifications. This rewrite was done for performance and size reasons - the Docker image is over 80x smaller (only 5.5MB) and standalone binaries for all major operating systems are available at under 13MB each.
 
 This tool passively earns Twitch channel points by simulating viewer presence across multiple streams.
 
@@ -20,6 +20,7 @@ This tool passively earns Twitch channel points by simulating viewer presence ac
 - **Community Goals**: Contribute channel points to streamer community goals
 - **Multi-Streamer Support**: Monitor multiple streamers with priority-based scheduling
 - **Real-time Analytics**: Web-based dashboard for tracking point earnings
+- **Discord Notifications**: Get notified for mentions, point goals, and stream status changes
 
 ## Installation
 
@@ -58,7 +59,7 @@ docker run -d \
   -v /path/to/config:/config \
   -v /path/to/cookies:/cookies \
   -v /path/to/logs:/logs \
-  -v /path/to/analytics:/analytics \
+  -v /path/to/database:/database \
   -p 5000:5000 \
   thegame402/twitch-miner-go:latest
 ```
@@ -212,6 +213,56 @@ When `enableChatLogs` is enabled:
 - Per-streamer override available via `"chatLogs": true/false` in streamer settings
 
 **Note**: Chat logging requires the streamer's chat to be joined (based on `chat` setting).
+
+## Discord Notifications
+
+The miner supports Discord notifications for:
+- **Chat Mentions**: Get notified when someone mentions you in chat
+- **Point Goals**: Get notified when you reach a point threshold
+- **Stream Online/Offline**: Get notified when streamers go live or offline
+
+### Setting Up Discord Bot
+
+1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
+2. Click **New Application** and give it a name
+3. Go to the **Bot** section
+4. Click **Reset Token** and copy the token (keep it secret!)
+5. Enable **Message Content Intent** under Privileged Gateway Intents
+6. Go to **OAuth2 → URL Generator**
+7. Select the **bot** scope
+8. Select these permissions:
+   - Send Messages
+   - Embed Links
+   - Read Message History
+9. Copy the generated URL and open it in your browser
+10. Select your Discord server and authorize the bot
+
+### Getting Your Guild ID
+
+See [Discord's official guide](https://support.discord.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID) for detailed instructions, or:
+
+1. Enable Developer Mode in Discord (User Settings → Advanced → Developer Mode)
+2. Right-click your server name and select **Copy Server ID**
+
+### Configuration
+
+Add Discord settings to your `config.json`:
+
+```json
+{
+  "discord": {
+    "enabled": true,
+    "botToken": "YOUR_BOT_TOKEN",
+    "guildId": "YOUR_SERVER_ID"
+  }
+}
+```
+
+After saving, a **Notifications** page will appear in the web dashboard where you can:
+- Select which Discord channels to send each notification type to
+- Enable/disable mention notifications (globally or per-streamer)
+- Create point goal rules (with one-time or recurring options)
+- Enable/disable online/offline notifications (globally or per-streamer)
 
 ## Rate Limits
 
