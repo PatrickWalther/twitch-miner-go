@@ -2,6 +2,7 @@
 twitch-miner-go
 twitch-miner-go.exe
 dist/
+bin/
 
 # Configuration (contains sensitive data)
 config.json
