@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/PatrickWalther/twitch-miner-go/internal/database"
+	"github.com/PatrickWalther/twitch-miner-go/internal/util"
 )
 
 type Repository interface {
@@ -262,8 +263,8 @@ func (r *SQLiteRepository) ListStreamers() ([]StreamerInfo, error) {
 		if err := rows.Scan(&info.Name, &info.Points, &info.LastActivity); err != nil {
 			return nil, err
 		}
-		info.PointsFormatted = formatNumber(info.Points)
-		info.LastActivityFormatted = formatTimeAgo(info.LastActivity)
+		info.PointsFormatted = util.FormatNumber(info.Points)
+		info.LastActivityFormatted = util.FormatTimeAgo(info.LastActivity)
 		streamers = append(streamers, info)
 	}
 
@@ -397,44 +398,4 @@ func (r *SQLiteRepository) SearchChatMessages(streamer string, query string, lim
 
 func (r *SQLiteRepository) Close() error {
 	return nil
-}
-
-func formatNumber(n int) string {
-	if n == 0 {
-		return "0"
-	}
-
-	sign := ""
-	if n < 0 {
-		sign = "-"
-		n = -n
-	}
-
-	s := fmt.Sprintf("%d", n)
-	result := ""
-	for i, c := range s {
-		if i > 0 && (len(s)-i)%3 == 0 {
-			result += ","
-		}
-		result += string(c)
-	}
-	return sign + result
-}
-
-func formatTimeAgo(timestamp int64) string {
-	if timestamp == 0 {
-		return "Never"
-	}
-
-	seconds := (time.Now().UnixMilli() - timestamp) / 1000
-	if seconds < 60 {
-		return "Just now"
-	}
-	if seconds < 3600 {
-		return fmt.Sprintf("%dm ago", seconds/60)
-	}
-	if seconds < 86400 {
-		return fmt.Sprintf("%dh ago", seconds/3600)
-	}
-	return fmt.Sprintf("%dd ago", seconds/86400)
 }

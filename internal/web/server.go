@@ -1,26 +1,19 @@
 package web
 
 import (
-	"context"
 	"embed"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
 	"log/slog"
 	"net/http"
-	"sort"
-	"strconv"
-	"strings"
 	"sync"
-	"time"
 
 	"github.com/PatrickWalther/twitch-miner-go/internal/analytics"
 	"github.com/PatrickWalther/twitch-miner-go/internal/config"
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
 	"github.com/PatrickWalther/twitch-miner-go/internal/notifications"
 	"github.com/PatrickWalther/twitch-miner-go/internal/settings"
-	"github.com/PatrickWalther/twitch-miner-go/internal/version"
 )
 
 //go:embed templates/*.html templates/partials/*.html
@@ -155,6 +148,7 @@ func (s *Server) SetDiscordEnabled(enabled bool) {
 func (s *Server) Start() {
 	mux := http.NewServeMux()
 
+	// Static files
 	staticSub, err := fs.Sub(staticFS, "static")
 	if err != nil {
 		slog.Error("Failed to create static filesystem", "error", err)
@@ -162,21 +156,28 @@ func (s *Server) Start() {
 		mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticSub))))
 	}
 
+	// Dashboard routes
 	mux.HandleFunc("/", s.handleDashboard)
-	mux.HandleFunc("/settings", s.handleSettingsPage)
 	mux.HandleFunc("/streamer/", s.handleStreamerPage)
 	mux.HandleFunc("/api/streamers", s.handleAPIStreamers)
+
+	// Status routes
 	mux.HandleFunc("/api/status", s.handleAPIStatus)
 	mux.HandleFunc("/api/miner-status", s.handleAPIMinerStatus)
 	mux.HandleFunc("/api/miner-status/stream", s.handleAPIMinerStatusStream)
+
+	// Settings routes
+	mux.HandleFunc("/settings", s.handleSettingsPage)
 	mux.HandleFunc("/api/settings", s.handleAPISettings)
 	mux.HandleFunc("/api/settings/reset", s.handleAPISettingsReset)
 
+	// Analytics/data routes
 	mux.HandleFunc("/streamers", s.handleStreamers)
 	mux.HandleFunc("/json/", s.handleJSON)
 	mux.HandleFunc("/json_all", s.handleJSONAll)
 	mux.HandleFunc("/api/chat/", s.handleAPIChatMessages)
 
+	// Notifications routes
 	mux.HandleFunc("/notifications", s.handleNotificationsPage)
 	mux.HandleFunc("/api/notifications/config", s.handleAPINotificationsConfig)
 	mux.HandleFunc("/api/notifications/channels", s.handleAPINotificationsChannels)
@@ -205,671 +206,18 @@ func (s *Server) Stop() {
 	}
 }
 
-func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-
-	repo := s.analytics.Repository()
-	streamers, err := repo.ListStreamers()
-	if err != nil {
-		slog.Error("Failed to list streamers", "error", err)
-		http.Error(w, "Internal error", http.StatusInternalServerError)
-		return
-	}
-
-	totalPoints := 0
-	pointsToday := 0
-	todayStart := time.Now().Truncate(24 * time.Hour)
-
-	for _, info := range streamers {
-		totalPoints += info.Points
-
-		data, err := repo.GetStreamerData(info.Name)
-		if err != nil {
-			continue
-		}
-		todayStartMS := todayStart.UnixMilli()
-		for i := len(data.Series) - 1; i >= 0; i-- {
-			if data.Series[i].X < todayStartMS {
-				if i+1 < len(data.Series) {
-					pointsToday += info.Points - data.Series[i+1].Y
-				}
-				break
-			}
-			if i == 0 && len(data.Series) > 0 {
-				pointsToday += info.Points - data.Series[0].Y
-			}
-		}
-	}
-
-	s.mu.RLock()
-	refresh := s.refresh
-	discordEnabled := s.discordEnabled
-	s.mu.RUnlock()
-
-	data := DashboardData{
-		Username:       s.username,
-		RefreshMinutes: refresh,
-		Version:        version.Version,
-		TotalPoints:    formatNumber(totalPoints),
-		StreamerCount:  len(streamers),
-		PointsToday:    formatNumber(pointsToday),
-		DiscordEnabled: discordEnabled,
-	}
-
-	s.renderPage(w, "dashboard.html", data)
-}
-
-func (s *Server) handleStreamerPage(w http.ResponseWriter, r *http.Request) {
-	name := strings.TrimPrefix(r.URL.Path, "/streamer/")
-	if name == "" {
-		http.Redirect(w, r, "/", http.StatusFound)
-		return
-	}
-
-	repo := s.analytics.Repository()
-	data, err := repo.GetStreamerData(name)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	currentPoints := 0
-	if len(data.Series) > 0 {
-		currentPoints = data.Series[len(data.Series)-1].Y
-	}
-
-	s.mu.RLock()
-	refresh := s.refresh
-	daysAgo := s.daysAgo
-	discordEnabled := s.discordEnabled
-	s.mu.RUnlock()
-
-	startTS := time.Now().AddDate(0, 0, -daysAgo).UnixMilli()
-	pointsGained := 0
-	for i, p := range data.Series {
-		if p.X >= startTS {
-			if i > 0 {
-				pointsGained = currentPoints - data.Series[i-1].Y
-			} else {
-				pointsGained = currentPoints - p.Y
-			}
-			break
-		}
-	}
-
-	pageData := StreamerPageData{
-		Username:       s.username,
-		RefreshMinutes: refresh,
-		Version:        version.Version,
-		Streamer: StreamerInfo{
-			Name:            name,
-			Points:          currentPoints,
-			PointsFormatted: formatNumber(currentPoints),
-		},
-		PointsGained:   formatNumber(pointsGained),
-		DataPoints:     len(data.Series),
-		DaysAgo:        daysAgo,
-		DiscordEnabled: discordEnabled,
-	}
-
-	s.renderPage(w, "streamer.html", pageData)
-}
-
-func (s *Server) handleAPIStreamers(w http.ResponseWriter, r *http.Request) {
-	repo := s.analytics.Repository()
-	repoStreamers, err := repo.ListStreamers()
-	if err != nil {
-		http.Error(w, "Failed to list streamers", http.StatusInternalServerError)
-		return
-	}
-
-	streamers := convertStreamerInfoList(repoStreamers)
-
-	streamerMap := make(map[string]*models.Streamer)
-	configOrder := make(map[string]int)
-	for i, st := range s.streamers {
-		streamerMap[st.Username] = st
-		configOrder[st.Username] = i
-	}
-
-	var trackedLive, trackedOffline, untracked []StreamerInfo
-
-	for i := range streamers {
-		if st, ok := streamerMap[streamers[i].Name]; ok {
-			streamers[i].IsLive = st.GetIsOnline()
-			if streamers[i].IsLive {
-				streamers[i].LiveDuration = formatDuration(time.Since(st.GetOnlineAt()))
-				trackedLive = append(trackedLive, streamers[i])
-			} else {
-				offlineAt := st.GetOfflineAt()
-				if !offlineAt.IsZero() {
-					streamers[i].OfflineDuration = formatDuration(time.Since(offlineAt))
-				}
-				trackedOffline = append(trackedOffline, streamers[i])
-			}
-		} else {
-			untracked = append(untracked, streamers[i])
-		}
-	}
-
-	sort.Slice(trackedLive, func(i, j int) bool {
-		return configOrder[trackedLive[i].Name] < configOrder[trackedLive[j].Name]
-	})
-	sort.Slice(trackedOffline, func(i, j int) bool {
-		return configOrder[trackedOffline[i].Name] < configOrder[trackedOffline[j].Name]
-	})
-	sort.Slice(untracked, func(i, j int) bool {
-		return untracked[i].Name < untracked[j].Name
-	})
-
-	gridData := StreamerGridData{
-		TrackedLive:    trackedLive,
-		TrackedOffline: trackedOffline,
-		Untracked:      untracked,
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	tmpl := s.templates["partials"]
-	if tmpl == nil {
-		http.Error(w, "Partials not loaded", http.StatusInternalServerError)
-		return
-	}
-	if err := tmpl.ExecuteTemplate(w, "streamer_grid", gridData); err != nil {
-		slog.Error("Failed to render streamer grid", "error", err)
-		http.Error(w, "Failed to render", http.StatusInternalServerError)
-	}
-}
-
-func (s *Server) handleAPIStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	_, _ = w.Write([]byte("Connected"))
-}
-
-func (s *Server) handleAPIMinerStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	status := s.status.GetStatus()
-	_ = json.NewEncoder(w).Encode(status)
-}
-
-func (s *Server) handleAPIMinerStatusStream(w http.ResponseWriter, r *http.Request) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "SSE not supported", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	ch := s.status.Subscribe()
-	defer s.status.Unsubscribe(ch)
-
-	ctx := r.Context()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case status, ok := <-ch:
-			if !ok {
-				return
-			}
-			data, _ := json.Marshal(status)
-			_, _ = fmt.Fprintf(w, "data: %s\n\n", data)
-			flusher.Flush()
-		}
-	}
-}
-
-func (s *Server) handleSettingsPage(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	refresh := s.refresh
-	discordEnabled := s.discordEnabled
-	s.mu.RUnlock()
-
-	data := SettingsPageData{
-		Username:       s.username,
-		RefreshMinutes: refresh,
-		Version:        version.Version,
-		DiscordEnabled: discordEnabled,
-	}
-	s.renderPage(w, "settings.html", data)
-}
-
-func (s *Server) handleAPISettings(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		if s.settingsProvider == nil {
-			http.Error(w, "Settings not available", http.StatusServiceUnavailable)
-			return
-		}
-		settings := s.settingsProvider.GetRuntimeSettings()
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(settings)
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		var newSettings settings.RuntimeSettings
-		if err := json.NewDecoder(r.Body).Decode(&newSettings); err != nil {
-			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if s.onSettingsUpdate != nil {
-			s.onSettingsUpdate(newSettings)
-		}
-
-		s.mu.Lock()
-		s.refresh = newSettings.Analytics.Refresh
-		s.daysAgo = newSettings.Analytics.DaysAgo
-		s.mu.Unlock()
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-		return
-	}
-
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-}
-
-func (s *Server) handleAPISettingsReset(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if s.settingsProvider == nil {
-		http.Error(w, "Settings not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	defaults := s.settingsProvider.GetDefaultSettings()
-
-	if s.onSettingsUpdate != nil {
-		s.onSettingsUpdate(defaults)
-	}
-
-	s.mu.Lock()
-	s.refresh = defaults.Analytics.Refresh
-	s.daysAgo = defaults.Analytics.DaysAgo
-	s.mu.Unlock()
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(defaults)
-}
-
 func (s *Server) renderPage(w http.ResponseWriter, page string, data interface{}) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	tmpl, ok := s.templates[page]
 	if !ok {
 		slog.Error("Template not found", "page", page)
-		http.Error(w, "Template not found", http.StatusInternalServerError)
+		writeInternalError(w, "Template not found")
 		return
 	}
 
 	if err := tmpl.ExecuteTemplate(w, "base.html", data); err != nil {
 		slog.Error("Failed to render page", "page", page, "error", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
+		writeInternalError(w, "Failed to render page")
 	}
-}
-
-func (s *Server) handleStreamers(w http.ResponseWriter, r *http.Request) {
-	repo := s.analytics.Repository()
-	streamers, err := repo.ListStreamers()
-	if err != nil {
-		http.Error(w, "Failed to list streamers", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(streamers)
-}
-
-func (s *Server) handleJSON(w http.ResponseWriter, r *http.Request) {
-	streamer := strings.TrimPrefix(r.URL.Path, "/json/")
-	streamer = strings.TrimSuffix(streamer, ".json")
-
-	if streamer == "" {
-		http.Error(w, "Streamer not specified", http.StatusBadRequest)
-		return
-	}
-
-	startDate := r.URL.Query().Get("startDate")
-	endDate := r.URL.Query().Get("endDate")
-
-	var startTime, endTime time.Time
-	if startDate != "" {
-		if t, err := time.Parse("2006-01-02", startDate); err == nil {
-			startTime = t
-		}
-	}
-	if endDate != "" {
-		if t, err := time.Parse("2006-01-02", endDate); err == nil {
-			endTime = t.Add(24*time.Hour - time.Second)
-		}
-	}
-
-	repo := s.analytics.Repository()
-	var data *analytics.StreamerData
-	var err error
-	if !startTime.IsZero() || !endTime.IsZero() {
-		data, err = repo.GetStreamerDataFiltered(streamer, startTime, endTime)
-	} else {
-		data, err = repo.GetStreamerData(streamer)
-	}
-
-	if err != nil {
-		http.Error(w, "Failed to get data", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(data)
-}
-
-func (s *Server) handleJSONAll(w http.ResponseWriter, r *http.Request) {
-	repo := s.analytics.Repository()
-	streamers, err := repo.ListStreamers()
-	if err != nil {
-		http.Error(w, "Failed to list streamers", http.StatusInternalServerError)
-		return
-	}
-
-	type namedData struct {
-		Name string                 `json:"name"`
-		Data analytics.StreamerData `json:"data"`
-	}
-
-	var result []namedData
-	for _, info := range streamers {
-		data, err := repo.GetStreamerData(info.Name)
-		if err != nil {
-			continue
-		}
-		result = append(result, namedData{Name: info.Name, Data: *data})
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)
-}
-
-func (s *Server) handleAPIChatMessages(w http.ResponseWriter, r *http.Request) {
-	streamer := strings.TrimPrefix(r.URL.Path, "/api/chat/")
-	if streamer == "" {
-		http.Error(w, "Streamer not specified", http.StatusBadRequest)
-		return
-	}
-
-	limit := 50
-	offset := 0
-	query := r.URL.Query().Get("q")
-
-	if l := r.URL.Query().Get("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-			if limit > 200 {
-				limit = 200
-			}
-		}
-	}
-
-	if o := r.URL.Query().Get("offset"); o != "" {
-		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
-			offset = parsed
-		}
-	}
-
-	repo := s.analytics.Repository()
-	var data *analytics.ChatLogData
-	var err error
-
-	if query != "" {
-		data, err = repo.SearchChatMessages(streamer, query, limit, offset)
-	} else {
-		data, err = repo.GetChatMessages(streamer, limit, offset)
-	}
-
-	if err != nil {
-		http.Error(w, "Failed to get chat messages", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(data)
-}
-
-func (s *Server) handleNotificationsPage(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	refresh := s.refresh
-	discordEnabled := s.discordEnabled
-	notifMgr := s.notificationManager
-	s.mu.RUnlock()
-
-	if !discordEnabled {
-		http.Redirect(w, r, "/", http.StatusFound)
-		return
-	}
-
-	var streamers []string
-	for _, st := range s.streamers {
-		streamers = append(streamers, st.Username)
-	}
-
-	configValid := true
-	configError := ""
-	if notifMgr != nil {
-		configValid, configError = notifMgr.IsConfigValid()
-	}
-
-	data := NotificationsPageData{
-		Username:       s.username,
-		RefreshMinutes: refresh,
-		Version:        version.Version,
-		DiscordEnabled: discordEnabled,
-		ConfigValid:    configValid,
-		ConfigError:    configError,
-		Streamers:      streamers,
-	}
-
-	s.renderPage(w, "notifications.html", data)
-}
-
-func (s *Server) handleAPINotificationsConfig(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	notifMgr := s.notificationManager
-	s.mu.RUnlock()
-
-	if notifMgr == nil {
-		http.Error(w, "Notifications not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	if r.Method == http.MethodGet {
-		cfg, err := notifMgr.GetConfig()
-		if err != nil {
-			http.Error(w, "Failed to get config", http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(cfg)
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		var cfg notifications.NotificationConfig
-		if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if err := notifMgr.SaveConfig(&cfg); err != nil {
-			http.Error(w, "Failed to save config", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-		return
-	}
-
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-}
-
-func (s *Server) handleAPINotificationsChannels(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	notifMgr := s.notificationManager
-	s.mu.RUnlock()
-
-	if notifMgr == nil {
-		http.Error(w, "Notifications not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	forceRefresh := r.URL.Query().Get("refresh") == "1"
-	channels, err := notifMgr.GetDiscordChannels(context.Background(), forceRefresh)
-	if err != nil {
-		http.Error(w, "Failed to get channels: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(channels)
-}
-
-func (s *Server) handleAPINotificationsPoints(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	notifMgr := s.notificationManager
-	s.mu.RUnlock()
-
-	if notifMgr == nil {
-		http.Error(w, "Notifications not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	if r.Method == http.MethodGet {
-		rules, err := notifMgr.GetPointRules()
-		if err != nil {
-			http.Error(w, "Failed to get rules", http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(rules)
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		var rule notifications.PointRule
-		if err := json.NewDecoder(r.Body).Decode(&rule); err != nil {
-			http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if err := notifMgr.AddPointRule(&rule); err != nil {
-			http.Error(w, "Failed to add rule", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(rule)
-		return
-	}
-
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-}
-
-func (s *Server) handleAPINotificationsPointsDelete(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	s.mu.RLock()
-	notifMgr := s.notificationManager
-	s.mu.RUnlock()
-
-	if notifMgr == nil {
-		http.Error(w, "Notifications not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	idStr := strings.TrimPrefix(r.URL.Path, "/api/notifications/points/")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
-		return
-	}
-
-	if err := notifMgr.DeletePointRule(id); err != nil {
-		http.Error(w, "Failed to delete rule", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-}
-
-func (s *Server) handleAPINotificationsTest(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	s.mu.RLock()
-	notifMgr := s.notificationManager
-	s.mu.RUnlock()
-
-	if notifMgr == nil {
-		http.Error(w, "Notifications not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	sent, err := notifMgr.SendTestNotifications()
-	if err != nil {
-		http.Error(w, "Failed to send test notifications: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]int{"sent": sent})
-}
-
-func formatNumber(n int) string {
-	if n == 0 {
-		return "0"
-	}
-
-	sign := ""
-	if n < 0 {
-		sign = "-"
-		n = -n
-	}
-
-	s := fmt.Sprintf("%d", n)
-	result := ""
-	for i, c := range s {
-		if i > 0 && (len(s)-i)%3 == 0 {
-			result += ","
-		}
-		result += string(c)
-	}
-	return sign + result
-}
-
-func formatDuration(d time.Duration) string {
-	totalSeconds := int(d.Seconds())
-	if totalSeconds < 60 {
-		return fmt.Sprintf("%ds", totalSeconds)
-	}
-	if totalSeconds < 3600 {
-		return fmt.Sprintf("%dm", totalSeconds/60)
-	}
-	if totalSeconds < 86400 {
-		return fmt.Sprintf("%dh", totalSeconds/3600)
-	}
-	return fmt.Sprintf("%dd", totalSeconds/86400)
 }

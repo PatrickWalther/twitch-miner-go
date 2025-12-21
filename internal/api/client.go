@@ -2,8 +2,6 @@ package api
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +16,7 @@ import (
 	"github.com/PatrickWalther/twitch-miner-go/internal/auth"
 	"github.com/PatrickWalther/twitch-miner-go/internal/constants"
 	"github.com/PatrickWalther/twitch-miner-go/internal/models"
+	"github.com/PatrickWalther/twitch-miner-go/internal/util"
 )
 
 var (
@@ -44,7 +43,7 @@ func NewTwitchClient(twitchAuth *auth.TwitchAuth, deviceID string) *TwitchClient
 	return &TwitchClient{
 		auth:                   twitchAuth,
 		deviceID:               deviceID,
-		clientSession:          generateHexString(16),
+		clientSession:          util.RandomHex(16),
 		clientVersion:          constants.DefaultClientVersion,
 		userAgent:              constants.TVUserAgent,
 		client:                 &http.Client{Timeout: 30 * time.Second},
@@ -515,7 +514,7 @@ func (c *TwitchClient) MakePrediction(event *models.EventPrediction) error {
 			"eventID":       event.EventID,
 			"outcomeID":     decision.ID,
 			"points":        decision.Amount,
-			"transactionID": generateHexString(16),
+			"transactionID": util.RandomHex(16),
 		},
 	})
 
@@ -656,7 +655,7 @@ func (c *TwitchClient) ContributeToCommunityGoal(streamer *models.Streamer, goal
 			"amount":        amount,
 			"channelID":     streamer.ChannelID,
 			"goalID":        goalID,
-			"transactionID": generateHexString(16),
+			"transactionID": util.RandomHex(16),
 		},
 	})
 
@@ -675,12 +674,4 @@ func (c *TwitchClient) ContributeToCommunityGoal(streamer *models.Streamer, goal
 
 	streamer.SetChannelPoints(streamer.GetChannelPoints() - amount)
 	return nil
-}
-
-func generateHexString(length int) string {
-	b := make([]byte, length)
-	if _, err := rand.Read(b); err != nil {
-		return strings.Repeat("0", length*2)
-	}
-	return hex.EncodeToString(b)
 }

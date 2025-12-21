@@ -2,8 +2,6 @@ package miner
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"os"
@@ -25,6 +23,7 @@ import (
 	"github.com/PatrickWalther/twitch-miner-go/internal/notifications"
 	"github.com/PatrickWalther/twitch-miner-go/internal/pubsub"
 	"github.com/PatrickWalther/twitch-miner-go/internal/settings"
+	"github.com/PatrickWalther/twitch-miner-go/internal/util"
 	"github.com/PatrickWalther/twitch-miner-go/internal/watcher"
 	"github.com/PatrickWalther/twitch-miner-go/internal/web"
 )
@@ -55,7 +54,7 @@ type Miner struct {
 }
 
 func New(cfg *config.Config, configPath string) *Miner {
-	deviceID := generateDeviceID()
+	deviceID := util.DeviceID()
 
 	return &Miner{
 		config:     cfg,
@@ -517,14 +516,6 @@ func (m *Miner) printSessionReport() {
 			}
 		}
 	}
-}
-
-func generateDeviceID() string {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "00000000000000000000000000000000"
-	}
-	return hex.EncodeToString(b)
 }
 
 func (m *Miner) GetRuntimeSettings() settings.RuntimeSettings {

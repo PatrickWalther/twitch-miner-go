@@ -128,9 +128,10 @@ internal/
 │   └── auth.go                 # OAuth device flow, token management
 │
 ├── pubsub/                     # WebSocket connections
-│   ├── pool.go                 # Connection pool management
-│   ├── connection.go           # Individual WebSocket connections
-│   └── topics.go               # Topic types and handlers
+│   ├── pool.go                 # Connection pool management and message handlers
+│   ├── websocket.go            # Individual WebSocket connections
+│   ├── message.go              # Message parsing
+│   └── topic.go                # Topic types
 │
 ├── chat/                       # IRC chat client
 │   ├── manager.go              # Chat connection management
@@ -140,7 +141,7 @@ internal/
 │   └── watcher.go              # Simulates viewing, reports to Twitch
 │
 ├── drops/                      # Game drops tracking
-│   └── tracker.go              # Campaign sync, drop claiming
+│   └── drops.go                # Campaign sync, drop claiming
 │
 ├── analytics/                  # Analytics data layer (no HTTP)
 │   ├── service.go              # Point/annotation recording service
@@ -149,7 +150,13 @@ internal/
 │   └── chat_adapter.go         # Adapter for chat message logging
 │
 ├── web/                        # Web dashboard server
-│   ├── server.go               # HTTP server and route handlers
+│   ├── server.go               # HTTP server setup, routing, lifecycle
+│   ├── responses.go            # HTTP response helpers (writeJSON, writeError)
+│   ├── handlers_dashboard.go   # Dashboard and streamer page handlers
+│   ├── handlers_analytics.go   # JSON data and chat API handlers
+│   ├── handlers_settings.go    # Settings page and API handlers
+│   ├── handlers_notifications.go # Notifications page and API handlers
+│   ├── handlers_status.go      # Status and health check handlers
 │   ├── status.go               # Miner status broadcaster (SSE)
 │   ├── viewmodels.go           # Page-specific view models
 │   ├── static/                 # CSS, JavaScript assets
@@ -166,24 +173,39 @@ internal/
 ├── notifications/              # Discord notifications
 │   ├── manager.go              # Notification orchestration
 │   ├── discord.go              # Discord bot client
-│   └── repository.go           # Notification rules storage
+│   ├── repository.go           # Notification rules storage
+│   ├── models.go               # Notification types and config
+│   └── provider.go             # Provider interface
 │
 ├── database/                   # Database layer
-│   └── db.go                   # SQLite connection, migrations
+│   └── database.go             # SQLite connection, migrations
 │
 ├── config/                     # Configuration
 │   └── config.go               # Load/save config, defaults
 │
 ├── settings/                   # Runtime settings
-│   └── builder.go              # Settings management for UI
+│   ├── builder.go              # Settings management for UI
+│   ├── convert.go              # Config conversion utilities
+│   └── dto.go                  # Data transfer objects
 │
 ├── models/                     # Domain models
-│   ├── streamer.go             # Streamer, Stream, Raid
-│   ├── prediction.go           # Prediction, Bet, Outcome
-│   └── drops.go                # Campaign, Drop
+│   ├── streamer.go             # Streamer, Stream
+│   ├── stream.go               # Stream details, payload
+│   ├── prediction.go           # Prediction events
+│   ├── bet.go                  # Betting logic and strategies
+│   ├── campaign.go             # Drop campaigns
+│   ├── drop.go                 # Individual drops
+│   ├── community_goal.go       # Community goals
+│   ├── raid.go                 # Raid data
+│   └── game.go                 # Game info
 │
 ├── constants/                  # Application constants
-│   └── constants.go            # Client IDs, endpoints
+│   ├── constants.go            # Client IDs, endpoints
+│   └── gql.go                  # GraphQL operation definitions
+│
+├── util/                       # Shared utilities
+│   ├── format.go               # Number and time formatting (FormatNumber, FormatDuration, FormatTimeAgo)
+│   └── random.go               # Random ID generation (RandomHex, DeviceID)
 │
 ├── logger/                     # Logging
 │   └── logger.go               # Structured logging setup
@@ -204,12 +226,13 @@ internal/
 | `watcher` | Minute-watched simulation. Reports viewing activity to Twitch. |
 | `drops` | Game drops tracking. Campaign sync and drop claiming. |
 | `analytics` | Data layer for points, annotations, chat messages. No HTTP. |
-| `web` | HTTP server for dashboard UI, settings, notifications pages. |
+| `web` | HTTP server for dashboard UI. Handlers organized by domain (dashboard, analytics, settings, notifications, status). |
 | `notifications` | Discord bot integration. Mentions, point goals, online/offline alerts. |
 | `database` | SQLite database layer. Connection management, migrations. |
 | `config` | Configuration loading/saving. Defaults and validation. |
 | `settings` | Runtime settings management. UI-driven configuration updates. |
 | `models` | Domain models. Streamer, Prediction, Campaign, etc. |
+| `util` | Shared utilities. Formatting, random ID generation. |
 
 ---
 
