@@ -218,11 +218,21 @@
         }, {{.RefreshMinutes}} * 60 * 1000);
     }
     
-    if (typeof ApexCharts !== 'undefined') {
-        initChart();
-    } else {
-        window.addEventListener('load', initChart);
+    function waitForApexCharts(callback, maxWait = 10000) {
+        const start = Date.now();
+        function check() {
+            if (typeof ApexCharts !== 'undefined') {
+                callback();
+            } else if (Date.now() - start < maxWait) {
+                setTimeout(check, 50);
+            } else {
+                console.error('ApexCharts failed to load');
+            }
+        }
+        check();
     }
+    
+    waitForApexCharts(initChart);
     
     const chatState = {
         messages: [],
