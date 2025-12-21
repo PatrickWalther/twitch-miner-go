@@ -11,9 +11,9 @@ RUN curl -sLo /usr/local/bin/tailwindcss https://github.com/tailwindlabs/tailwin
     && chmod +x /usr/local/bin/tailwindcss
 
 # Download and install UPX
-RUN curl -sLo /tmp/upx.tar.xz https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz \
+RUN curl -sLo /tmp/upx.tar.xz https://github.com/upx/upx/releases/download/v5.0.2/upx-5.0.2-amd64_linux.tar.xz \
     && cd /tmp && tar -xf upx.tar.xz \
-    && mv upx-4.2.4-amd64_linux/upx /usr/local/bin/ \
+    && mv upx-5.0.2-amd64_linux/upx /usr/local/bin/ \
     && rm -rf /tmp/upx*
 
 # Copy go mod files first for better caching

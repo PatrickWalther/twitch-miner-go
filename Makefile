@@ -10,7 +10,7 @@ LDFLAGS := -s -w -X $(MODULE)/internal/version.Version=$(VERSION)
 DOCKER_REPO ?= thegame402/twitch-miner-go
 
 # UPX configuration
-UPX_VERSION := 4.2.4
+UPX_VERSION := 5.0.2
 ifeq ($(OS),Windows_NT)
     UPX_BIN := bin/upx.exe
     UPX_RELEASE := upx-$(UPX_VERSION)-win64
