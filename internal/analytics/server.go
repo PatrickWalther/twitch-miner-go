@@ -220,10 +220,10 @@ func (s *AnalyticsServer) Start() {
 
 func (s *AnalyticsServer) Stop() {
 	if s.server != nil {
-		s.server.Close()
+		_ = s.server.Close()
 	}
 	if s.repo != nil {
-		s.repo.Close()
+		_ = s.repo.Close()
 	}
 }
 
@@ -436,7 +436,7 @@ func (s *AnalyticsServer) handleAPIMinerStatusStream(w http.ResponseWriter, r *h
 				return
 			}
 			data, _ := json.Marshal(status)
-			fmt.Fprintf(w, "data: %s\n\n", data)
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", data)
 			flusher.Flush()
 		}
 	}

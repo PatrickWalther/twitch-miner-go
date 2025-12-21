@@ -346,7 +346,7 @@ func (w *MinuteWatcher) simulateWatching(channel, sig, token string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get stream list: %w", err)
 	}
-	defer streamListResp.Body.Close()
+	defer func() { _ = streamListResp.Body.Close() }()
 
 	if streamListResp.StatusCode != http.StatusOK {
 		return fmt.Errorf("stream list request failed with status %d", streamListResp.StatusCode)
@@ -381,7 +381,7 @@ func (w *MinuteWatcher) simulateWatching(channel, sig, token string) error {
 	if err != nil {
 		return fmt.Errorf("HEAD request failed: %w", err)
 	}
-	defer headResp.Body.Close()
+	defer func() { _ = headResp.Body.Close() }()
 
 	if headResp.StatusCode != http.StatusOK {
 		return fmt.Errorf("HEAD request returned status %d", headResp.StatusCode)

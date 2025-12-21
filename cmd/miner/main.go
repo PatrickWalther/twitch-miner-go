@@ -79,7 +79,7 @@ func main() {
 			slog.Error("Failed to open database", "error", err)
 			os.Exit(1)
 		}
-		defer db.Close()
+		defer func() { _ = db.Close() }()
 		analyticsServer = analytics.NewAnalyticsServerEarly(cfg.Analytics, cfg.Username, dbBasePath, db)
 		if analyticsServer != nil {
 			analyticsServer.Start()

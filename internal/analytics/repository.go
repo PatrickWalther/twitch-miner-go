@@ -127,12 +127,12 @@ func (r *SQLiteRepository) migrateFromOldDB() error {
 	if err != nil {
 		return fmt.Errorf("failed to open old database: %w", err)
 	}
-	defer oldDB.Close()
+	defer func() { _ = oldDB.Close() }()
 
 	var count int
 	err = oldDB.QueryRow("SELECT COUNT(*) FROM streamers").Scan(&count)
 	if err != nil || count == 0 {
-		os.Remove(oldDBPath)
+		_ = os.Remove(oldDBPath)
 		return nil
 	}
 
@@ -140,7 +140,7 @@ func (r *SQLiteRepository) migrateFromOldDB() error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var name string
@@ -184,7 +184,7 @@ func (r *SQLiteRepository) migrateFromOldDB() error {
 						newStreamerID, ts, pts, eventType.String)
 				}
 			}
-			pointRows.Close()
+			_ = pointRows.Close()
 		}
 
 		annotationRows, _ := oldDB.Query("SELECT timestamp, text, color FROM annotations WHERE streamer_id = ?", oldStreamerID)
@@ -197,7 +197,7 @@ func (r *SQLiteRepository) migrateFromOldDB() error {
 						newStreamerID, ts, text, color)
 				}
 			}
-			annotationRows.Close()
+			_ = annotationRows.Close()
 		}
 
 		chatRows, _ := oldDB.Query("SELECT timestamp, username, display_name, message, emotes, badges, color FROM chat_messages WHERE streamer_id = ?", oldStreamerID)
@@ -211,7 +211,7 @@ func (r *SQLiteRepository) migrateFromOldDB() error {
 						newStreamerID, ts, username, displayName, message, emotes.String, badges.String, chatColor.String)
 				}
 			}
-			chatRows.Close()
+			_ = chatRows.Close()
 		}
 
 		if err := tx.Commit(); err != nil {
@@ -302,7 +302,7 @@ func (r *SQLiteRepository) importStreamerData(streamer string, data *StreamerDat
 	if err != nil {
 		return err
 	}
-	defer pointsStmt.Close()
+	defer func() { _ = pointsStmt.Close() }()
 
 	for _, p := range data.Series {
 		_, err = pointsStmt.Exec(streamerID, p.X, p.Y, p.Z)
@@ -315,7 +315,7 @@ func (r *SQLiteRepository) importStreamerData(streamer string, data *StreamerDat
 	if err != nil {
 		return err
 	}
-	defer annotationsStmt.Close()
+	defer func() { _ = annotationsStmt.Close() }()
 
 	for _, a := range data.Annotations {
 		_, err = annotationsStmt.Exec(streamerID, a.X, a.Label.Text, a.BorderColor)

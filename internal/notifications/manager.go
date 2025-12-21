@@ -69,7 +69,7 @@ func (m *Manager) Stop() {
 	}
 
 	if m.repo != nil {
-		m.repo.Close()
+		_ = m.repo.Close()
 	}
 }
 

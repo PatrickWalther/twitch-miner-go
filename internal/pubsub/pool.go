@@ -371,9 +371,10 @@ func (p *WebSocketPool) handlePredictionUser(msg *PubSubMessage, streamer *model
 
 		streamer.UpdateHistory("PREDICTION", gained)
 
-		if event.Result.Type == models.ResultRefund {
+		switch event.Result.Type {
+		case models.ResultRefund:
 			streamer.UpdateHistoryWithCounter("REFUND", -placed, -1)
-		} else if event.Result.Type == models.ResultWin {
+		case models.ResultWin:
 			streamer.UpdateHistoryWithCounter("PREDICTION", -won, -1)
 		}
 	}

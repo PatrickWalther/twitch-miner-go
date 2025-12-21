@@ -96,11 +96,14 @@ func (e *EventPrediction) ParseResult(result map[string]interface{}) (placed, wo
 		prefix = "+"
 	}
 
-	action := "Gained"
-	if resultType == "LOSE" {
+	var action string
+	switch resultType {
+	case "LOSE":
 		action = "Lost"
-	} else if resultType == "REFUND" {
+	case "REFUND":
 		action = "Refunded"
+	default:
+		action = "Gained"
 	}
 
 	e.Result = PredictionResult{

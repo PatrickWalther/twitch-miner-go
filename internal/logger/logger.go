@@ -62,7 +62,7 @@ func Setup(username string, settings config.LoggerSettings) (*Logger, error) {
 
 func (l *Logger) Close() {
 	if l.file != nil {
-		l.file.Close()
+		_ = l.file.Close()
 	}
 }
 
@@ -88,6 +88,6 @@ func clearOldLogs(logPath string, daysToKeep int) {
 	}
 
 	if time.Since(info.ModTime()) > time.Duration(daysToKeep)*24*time.Hour {
-		os.Remove(logPath)
+		_ = os.Remove(logPath)
 	}
 }

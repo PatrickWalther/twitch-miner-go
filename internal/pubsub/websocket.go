@@ -92,7 +92,7 @@ func (ws *WebSocketClient) Close() {
 
 	close(ws.stopChan)
 	if ws.conn != nil {
-		ws.conn.Close()
+		_ = ws.conn.Close()
 	}
 }
 
@@ -306,7 +306,7 @@ func (ws *WebSocketClient) reconnect() {
 	ws.mu.Unlock()
 
 	if ws.conn != nil {
-		ws.conn.Close()
+		_ = ws.conn.Close()
 	}
 
 	slog.Info("Reconnecting WebSocket in 60 seconds", "index", ws.index)

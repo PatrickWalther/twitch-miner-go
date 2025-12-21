@@ -79,7 +79,7 @@ func (c *TwitchClient) postGQLRequest(operation constants.GQLOperation) (map[str
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -326,7 +326,7 @@ func (c *TwitchClient) GetSpadeURL(streamer *models.Streamer) error {
 	if err != nil {
 		return err
 	}
-	defer settingsResp.Body.Close()
+	defer func() { _ = settingsResp.Body.Close() }()
 
 	settingsBody, err := io.ReadAll(settingsResp.Body)
 	if err != nil {

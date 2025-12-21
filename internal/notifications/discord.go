@@ -221,7 +221,7 @@ func (d *DiscordProvider) ValidateConfig(ctx context.Context) error {
 	if err := session.Open(); err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	_, err = session.Guild(d.guildID)
 	if err != nil {

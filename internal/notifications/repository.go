@@ -87,7 +87,7 @@ func (r *Repository) migrateFromOldDB(basePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open old database: %w", err)
 	}
-	defer oldDB.Close()
+	defer func() { _ = oldDB.Close() }()
 
 	row := oldDB.QueryRow(`
 		SELECT 
@@ -149,7 +149,7 @@ func (r *Repository) migrateFromOldDB(basePath string) error {
 		return fmt.Errorf("failed to read old point rules: %w", err)
 	}
 	if rows != nil {
-		defer rows.Close()
+		defer func() { _ = rows.Close() }()
 		for rows.Next() {
 			var streamer string
 			var threshold int
@@ -268,7 +268,7 @@ func (r *Repository) GetPointRules() ([]PointRule, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var rules []PointRule
 	for rows.Next() {

@@ -74,12 +74,12 @@ func (c *IRCClient) Connect() error {
 	c.mu.Unlock()
 
 	if err := c.authenticate(); err != nil {
-		c.conn.Close()
+		_ = c.conn.Close()
 		return fmt.Errorf("failed to authenticate: %w", err)
 	}
 
 	if err := c.join(); err != nil {
-		c.conn.Close()
+		_ = c.conn.Close()
 		return fmt.Errorf("failed to join channel: %w", err)
 	}
 
@@ -254,7 +254,7 @@ func (c *IRCClient) Stop() {
 
 	if conn != nil {
 		_ = c.send("PART " + c.channel)
-		conn.Close()
+		_ = conn.Close()
 	}
 
 	slog.Info("Left IRC chat", "channel", c.channel)

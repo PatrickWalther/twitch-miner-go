@@ -378,7 +378,8 @@ func (m *Miner) streamCheckLoop() {
 func (m *Miner) handlePubSubMessage(msg *pubsub.PubSubMessage, streamer *models.Streamer) {
 	switch msg.Topic.Type {
 	case pubsub.TopicCommunityPointsUser:
-		if msg.Type == "points-earned" {
+		switch msg.Type {
+		case "points-earned":
 			if data := msg.Data; data != nil {
 				if pointGain, ok := data["point_gain"].(map[string]interface{}); ok {
 					if reasonCode, ok := pointGain["reason_code"].(string); ok {
@@ -398,7 +399,7 @@ func (m *Miner) handlePubSubMessage(msg *pubsub.PubSubMessage, streamer *models.
 			if m.notifications != nil {
 				m.notifications.NotifyPointsReached(streamer.Username, streamer.GetChannelPoints())
 			}
-		} else if msg.Type == "points-spent" {
+		case "points-spent":
 			if m.analytics != nil {
 				m.analytics.RecordPoints(streamer, "Spent")
 			}
@@ -408,9 +409,10 @@ func (m *Miner) handlePubSubMessage(msg *pubsub.PubSubMessage, streamer *models.
 		if m.analytics == nil {
 			return
 		}
-		if msg.Type == "prediction-made" {
+		switch msg.Type {
+		case "prediction-made":
 			m.analytics.RecordAnnotation(streamer, "PREDICTION_MADE", "Prediction placed")
-		} else if msg.Type == "prediction-result" {
+		case "prediction-result":
 			if data := msg.Data; data != nil {
 				if prediction, ok := data["prediction"].(map[string]interface{}); ok {
 					if result, ok := prediction["result"].(map[string]interface{}); ok {
@@ -471,7 +473,7 @@ func (m *Miner) stop() {
 	}
 
 	if m.db != nil {
-		m.db.Close()
+		_ = m.db.Close()
 	}
 
 	m.printSessionReport()
