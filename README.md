@@ -24,7 +24,7 @@ This tool passively earns Twitch channel points by simulating viewer presence ac
 
 ## Quick Start
 
-Choose one of the four installation methods below. Each guide is self-contained.
+Choose one of the four installation methods below.
 
 | Method | Best For |
 |--------|----------|
