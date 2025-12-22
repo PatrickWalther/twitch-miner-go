@@ -115,11 +115,14 @@
 ```
 cmd/
 └── miner/
-    └── main.go                 # Application entry point
+    └── main.go                 # Application entry point, signal handling
 
 internal/
 ├── miner/                      # Main application controller (orchestrator)
-│   └── miner.go                # Coordinates all components, handles lifecycle
+│   └── miner.go                # Coordinates all components, context-based lifecycle
+│
+├── streamer/                   # Streamer management
+│   └── manager.go              # Loading, storing, updating streamers
 │
 ├── api/                        # Twitch API client
 │   └── client.go               # GraphQL requests, stream info, point operations
@@ -218,15 +221,16 @@ internal/
 
 | Package | Responsibility |
 |---------|----------------|
-| `miner` | Main application controller. Orchestrates all components, handles lifecycle. |
+| `miner` | Main application controller. Orchestrates all components, context-based lifecycle. |
+| `streamer` | Streamer management. Loading from config, applying settings, session reporting. |
 | `api` | Twitch GraphQL API client. All Twitch data fetching and mutations. |
 | `auth` | OAuth device flow authentication. Token storage and refresh. |
 | `pubsub` | WebSocket connection pool for real-time Twitch PubSub events. |
 | `chat` | IRC client for Twitch chat. Presence, mentions, message logging. |
-| `watcher` | Minute-watched simulation. Reports viewing activity to Twitch. |
-| `drops` | Game drops tracking. Campaign sync and drop claiming. |
+| `watcher` | Minute-watched simulation. Reports viewing activity to Twitch. Context-based cancellation. |
+| `drops` | Game drops tracking. Campaign sync and drop claiming. Context-based cancellation. |
 | `analytics` | Data layer for points, annotations, chat messages. No HTTP. |
-| `web` | HTTP server for dashboard UI. Handlers organized by domain (dashboard, analytics, settings, notifications, status). |
+| `web` | HTTP server for dashboard UI. Optional basic auth via environment variables. |
 | `notifications` | Discord bot integration. Mentions, point goals, online/offline alerts. |
 | `database` | SQLite database layer. Connection management, migrations. |
 | `config` | Configuration loading/saving. Defaults and validation. |
@@ -254,17 +258,26 @@ The main controller coordinates all mining operations.
 
 #### Core Operations
 ```
+Run(ctx)              # Main entry point, blocks until context is cancelled
 initialize()          # Set up connections and load state
 authenticate()        # Perform OAuth login
-startMining()         # Begin the mining loop
-stopMining()          # Graceful shutdown
+loadStreamers()       # Load streamers via StreamerManager
+startMining(ctx)      # Begin the mining loop with context
+stop()                # Graceful shutdown
 ```
 
+#### Lifecycle Model
+
+The application uses `context.Context` for lifecycle management:
+- Signal handling (SIGINT, SIGTERM) is done in `main.go` using `signal.NotifyContext`
+- The context is passed to `Miner.Run(ctx)` which propagates it to all components
+- When the context is cancelled, all goroutines gracefully shut down
+
 #### Concurrent Operations
-The application runs multiple concurrent operations:
-1. **Main Loop**: Orchestration and WebSocket health monitoring
-2. **Minute Watcher**: Sends minute-watched events (60s cycle divided by # of streamers, with ±20% jitter)
-3. **Campaign Sync**: Syncs drop campaigns every 60 minutes
+The application runs multiple concurrent operations, all using context-based cancellation:
+1. **Minute Watcher**: Sends minute-watched events (60s cycle divided by # of streamers, with ±20% jitter)
+2. **Campaign Sync**: Syncs drop campaigns every 60 minutes
+3. **Stream Check Loop**: Periodic online status checks
 4. **WebSocket Handlers**: One per PubSub connection (up to 50 topics each)
 5. **IRC Connections**: One per streamer with chat enabled
 6. **Analytics Server**: HTTP server for dashboard (optional)
@@ -852,6 +865,17 @@ CREATE TABLE point_rules (
 The analytics system is split into two packages:
 - **`internal/analytics`**: Data layer for recording and querying points, annotations, and chat messages (no HTTP)
 - **`internal/web`**: HTTP server providing the dashboard UI, settings, and notifications pages
+
+### Dashboard Authentication
+
+The web dashboard supports optional HTTP Basic Authentication via environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `DASHBOARD_USERNAME` | Username for dashboard access |
+| `DASHBOARD_PASSWORD` | Password for dashboard access |
+
+Both must be set to enable authentication. When enabled, all dashboard routes require valid credentials.
 
 ### Data Storage
 

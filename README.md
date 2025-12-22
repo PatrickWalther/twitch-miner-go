@@ -207,6 +207,26 @@ When enabled, the web server provides a dashboard at `http://localhost:5000` wit
 | `daysAgo` | 7 | Default chart date range |
 | `enableChatLogs` | false | Enable chat message logging |
 
+### Dashboard Authentication
+
+To protect the dashboard with HTTP Basic Authentication, set these environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `DASHBOARD_USERNAME` | Username for dashboard access |
+| `DASHBOARD_PASSWORD` | Password for dashboard access |
+
+Both must be set to enable authentication. Example with Docker:
+
+```bash
+docker run -d \
+  -e DASHBOARD_USERNAME=admin \
+  -e DASHBOARD_PASSWORD=your-secure-password \
+  -v /path/to/config:/config \
+  -p 5000:5000 \
+  thegame402/twitch-miner-go:latest
+```
+
 ### Chat Logging
 
 When `enableChatLogs` is enabled:

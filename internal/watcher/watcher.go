@@ -1,6 +1,7 @@
 package watcher
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -23,8 +24,9 @@ type MinuteWatcher struct {
 	streamers  []*models.Streamer
 	priorities []config.Priority
 	settings   config.RateLimitSettings
-	running    bool
-	stopChan   chan struct{}
+
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	httpClient *http.Client
 
@@ -42,14 +44,13 @@ func NewMinuteWatcher(
 		streamers:  streamers,
 		priorities: priorities,
 		settings:   settings,
-		stopChan:   make(chan struct{}),
 		httpClient: &http.Client{Timeout: 20 * time.Second},
 	}
 }
 
-func (w *MinuteWatcher) Start() {
+func (w *MinuteWatcher) Start(ctx context.Context) {
 	w.mu.Lock()
-	w.running = true
+	w.ctx, w.cancel = context.WithCancel(ctx)
 	w.mu.Unlock()
 
 	go w.loop()
@@ -57,16 +58,10 @@ func (w *MinuteWatcher) Start() {
 
 func (w *MinuteWatcher) Stop() {
 	w.mu.Lock()
-	w.running = false
+	if w.cancel != nil {
+		w.cancel()
+	}
 	w.mu.Unlock()
-
-	close(w.stopChan)
-}
-
-func (w *MinuteWatcher) IsRunning() bool {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-	return w.running
 }
 
 func (w *MinuteWatcher) UpdateSettings(priorities []config.Priority, settings config.RateLimitSettings) {
@@ -84,7 +79,7 @@ func (w *MinuteWatcher) randomizedDelay(base time.Duration) time.Duration {
 func (w *MinuteWatcher) loop() {
 	for {
 		select {
-		case <-w.stopChan:
+		case <-w.ctx.Done():
 			return
 		default:
 		}
@@ -93,7 +88,7 @@ func (w *MinuteWatcher) loop() {
 
 		interval := time.Duration(w.settings.MinuteWatchedInterval) * time.Second
 		select {
-		case <-w.stopChan:
+		case <-w.ctx.Done():
 			return
 		case <-time.After(w.randomizedDelay(interval)):
 		}
@@ -136,7 +131,7 @@ func (w *MinuteWatcher) processWatching() {
 		}
 
 		select {
-		case <-w.stopChan:
+		case <-w.ctx.Done():
 			return
 		case <-time.After(w.randomizedDelay(sleepBetween)):
 		}

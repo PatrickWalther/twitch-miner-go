@@ -1,6 +1,7 @@
 package drops
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 	"time"
@@ -17,8 +18,9 @@ type DropsTracker struct {
 	settings  config.RateLimitSettings
 
 	campaigns []*models.Campaign
-	running   bool
-	stopChan  chan struct{}
+
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	mu sync.RWMutex
 }
@@ -32,13 +34,12 @@ func NewDropsTracker(
 		client:    client,
 		streamers: streamers,
 		settings:  settings,
-		stopChan:  make(chan struct{}),
 	}
 }
 
-func (d *DropsTracker) Start() {
+func (d *DropsTracker) Start(ctx context.Context) {
 	d.mu.Lock()
-	d.running = true
+	d.ctx, d.cancel = context.WithCancel(ctx)
 	d.mu.Unlock()
 
 	go d.loop()
@@ -46,10 +47,10 @@ func (d *DropsTracker) Start() {
 
 func (d *DropsTracker) Stop() {
 	d.mu.Lock()
-	d.running = false
+	if d.cancel != nil {
+		d.cancel()
+	}
 	d.mu.Unlock()
-
-	close(d.stopChan)
 }
 
 func (d *DropsTracker) loop() {
@@ -62,7 +63,7 @@ func (d *DropsTracker) loop() {
 
 	for {
 		select {
-		case <-d.stopChan:
+		case <-d.ctx.Done():
 			return
 		case <-ticker.C:
 			d.syncCampaigns()

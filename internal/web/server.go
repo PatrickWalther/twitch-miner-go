@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/PatrickWalther/twitch-miner-go/internal/analytics"
@@ -47,17 +48,17 @@ func NewServer(analyticsSettings config.AnalyticsSettings, username string, base
 	templates := loadTemplates()
 
 	return &Server{
-		host:      analyticsSettings.Host,
-		port:      analyticsSettings.Port,
-		refresh:   analyticsSettings.Refresh,
-		daysAgo:   analyticsSettings.DaysAgo,
-		username:  username,
-		basePath:  basePath,
-		streamers: streamers,
-		analytics: analyticsSvc,
-		templates: templates,
-		status:    NewStatusBroadcaster(),
-		ready:     len(streamers) > 0,
+		host:         analyticsSettings.Host,
+		port:         analyticsSettings.Port,
+		refresh:      analyticsSettings.Refresh,
+		daysAgo:      analyticsSettings.DaysAgo,
+		username:     username,
+		basePath:     basePath,
+		streamers:    streamers,
+		analytics:    analyticsSvc,
+		templates:    templates,
+		status: NewStatusBroadcaster(),
+		ready:  len(streamers) > 0,
 	}
 }
 
@@ -65,17 +66,17 @@ func NewServerEarly(analyticsSettings config.AnalyticsSettings, username string,
 	templates := loadTemplates()
 
 	return &Server{
-		host:      analyticsSettings.Host,
-		port:      analyticsSettings.Port,
-		refresh:   analyticsSettings.Refresh,
-		daysAgo:   analyticsSettings.DaysAgo,
-		username:  username,
-		basePath:  basePath,
-		streamers: nil,
-		analytics: analyticsSvc,
-		templates: templates,
-		status:    NewStatusBroadcaster(),
-		ready:     false,
+		host:         analyticsSettings.Host,
+		port:         analyticsSettings.Port,
+		refresh:      analyticsSettings.Refresh,
+		daysAgo:      analyticsSettings.DaysAgo,
+		username:     username,
+		basePath:     basePath,
+		streamers:    nil,
+		analytics:    analyticsSvc,
+		templates:    templates,
+		status: NewStatusBroadcaster(),
+		ready:  false,
 	}
 }
 
@@ -145,6 +146,34 @@ func (s *Server) SetDiscordEnabled(enabled bool) {
 	s.discordEnabled = enabled
 }
 
+func getAuthCredentials() (username, password string) {
+	return os.Getenv("DASHBOARD_USERNAME"), os.Getenv("DASHBOARD_PASSWORD")
+}
+
+func authEnabled() bool {
+	username, password := getAuthCredentials()
+	return username != "" && password != ""
+}
+
+func basicAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		expectedUser, expectedPass := getAuthCredentials()
+		if expectedUser == "" || expectedPass == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != expectedUser || pass != expectedPass {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Twitch Miner Dashboard"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) Start() {
 	mux := http.NewServeMux()
 
@@ -186,9 +215,16 @@ func (s *Server) Start() {
 	mux.HandleFunc("/api/notifications/test", s.handleAPINotificationsTest)
 
 	addr := fmt.Sprintf("%s:%d", s.host, s.port)
+
+	var handler http.Handler = mux
+	if authEnabled() {
+		handler = basicAuthMiddleware(mux)
+		slog.Info("Web server authentication enabled")
+	}
+
 	s.server = &http.Server{
 		Addr:    addr,
-		Handler: mux,
+		Handler: handler,
 	}
 
 	slog.Info("Web server starting", "url", "http://"+addr+"/")

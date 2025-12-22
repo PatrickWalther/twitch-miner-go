@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/PatrickWalther/twitch-miner-go/internal/analytics"
 	"github.com/PatrickWalther/twitch-miner-go/internal/config"
@@ -96,6 +99,9 @@ func main() {
 		}
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	m := miner.New(cfg, *configFile)
 	if analyticsSvc != nil {
 		m.SetAnalyticsService(analyticsSvc)
@@ -103,7 +109,7 @@ func main() {
 	if webServer != nil {
 		m.SetWebServer(webServer)
 	}
-	if err := m.Run(); err != nil {
+	if err := m.Run(ctx); err != nil {
 		slog.Error("Miner error", "error", err)
 		os.Exit(1)
 	}
