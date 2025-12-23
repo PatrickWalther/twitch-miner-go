@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/icon.png" alt="Twitch Points Miner" width="128">
+</p>
+
 # Twitch Channel Points Miner
 
 [![CI](https://github.com/PatrickWalther/twitch-miner-go/actions/workflows/ci.yml/badge.svg)](https://github.com/PatrickWalther/twitch-miner-go/actions/workflows/ci.yml)
