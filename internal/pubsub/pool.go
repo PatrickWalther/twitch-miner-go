@@ -72,6 +72,23 @@ func (p *WebSocketPool) Close() {
 	p.clients = nil
 }
 
+func (p *WebSocketPool) Unsubscribe(topic Topic) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, ws := range p.clients {
+		if ws.Unlisten(topic) {
+			return
+		}
+	}
+}
+
+func (p *WebSocketPool) UpdateStreamers(streamers []*models.Streamer) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.streamers = streamers
+}
+
 func (p *WebSocketPool) findStreamer(channelID string) *models.Streamer {
 	for _, s := range p.streamers {
 		if s.ChannelID == channelID {

@@ -53,6 +53,7 @@ type Streamer struct {
 	StreamUpTime      time.Time
 	OnlineAt          time.Time
 	OfflineAt         time.Time
+	LastChecked       time.Time
 	ChannelPoints     int
 	CommunityGoals    map[string]*CommunityGoal
 	ViewerIsMod       bool
@@ -244,4 +245,16 @@ func (s *Streamer) SetSettings(settings StreamerSettings) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.Settings = settings
+}
+
+func (s *Streamer) GetLastChecked() time.Time {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.LastChecked
+}
+
+func (s *Streamer) SetLastChecked(t time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.LastChecked = t
 }

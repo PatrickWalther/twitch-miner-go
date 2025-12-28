@@ -131,24 +131,71 @@ func (m *Manager) PointsMap() map[string]int {
 }
 
 // ApplySettings updates settings for streamers based on config.
-func (m *Manager) ApplySettings(configs []config.StreamerConfig, defaults models.StreamerSettings) {
+// Returns lists of added and removed streamers.
+func (m *Manager) ApplySettings(configs []config.StreamerConfig, defaults models.StreamerSettings) (added, removed []*models.Streamer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.defaults = defaults
 
+	configMap := make(map[string]config.StreamerConfig)
+	for _, sc := range configs {
+		configMap[strings.ToLower(sc.Username)] = sc
+	}
+
+	existingMap := make(map[string]*models.Streamer)
+	for _, s := range m.streamers {
+		existingMap[s.Username] = s
+	}
+
 	for _, streamer := range m.streamers {
-		for _, sc := range configs {
-			if streamer.Username == strings.ToLower(sc.Username) {
-				if sc.Settings != nil {
-					streamer.SetSettings(*sc.Settings)
-				} else {
-					streamer.SetSettings(defaults)
-				}
-				break
+		if sc, ok := configMap[streamer.Username]; ok {
+			if sc.Settings != nil {
+				streamer.SetSettings(*sc.Settings)
+			} else {
+				streamer.SetSettings(defaults)
 			}
 		}
 	}
+
+	for username := range configMap {
+		if _, exists := existingMap[username]; !exists {
+			sc := configMap[username]
+			settings := defaults
+			if sc.Settings != nil {
+				settings = *sc.Settings
+			}
+
+			streamer := models.NewStreamer(username, settings)
+			channelID, err := m.client.GetChannelID(streamer.Username)
+			if err != nil {
+				slog.Warn("Failed to add streamer", "username", username, "error", err)
+				continue
+			}
+			streamer.ChannelID = channelID
+
+			if err := m.client.LoadChannelPointsContext(streamer); err != nil {
+				slog.Warn("Failed to load channel points for new streamer", "streamer", username, "error", err)
+			}
+
+			m.streamers = append(m.streamers, streamer)
+			added = append(added, streamer)
+			slog.Info("Added new streamer", "username", username, "channelID", channelID)
+		}
+	}
+
+	var remaining []*models.Streamer
+	for _, streamer := range m.streamers {
+		if _, ok := configMap[streamer.Username]; ok {
+			remaining = append(remaining, streamer)
+		} else {
+			removed = append(removed, streamer)
+			slog.Info("Removed streamer", "username", streamer.Username)
+		}
+	}
+	m.streamers = remaining
+
+	return added, removed
 }
 
 // CheckOnlineStatus checks the online status for all streamers.

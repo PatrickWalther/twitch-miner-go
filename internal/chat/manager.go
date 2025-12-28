@@ -87,6 +87,16 @@ func (m *ChatManager) leaveChat(streamer *models.Streamer) {
 	}
 }
 
+func (m *ChatManager) Leave(username string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if client, exists := m.clients[username]; exists {
+		client.Stop()
+		delete(m.clients, username)
+	}
+}
+
 func (m *ChatManager) Close() {
 	m.mu.Lock()
 	defer m.mu.Unlock()

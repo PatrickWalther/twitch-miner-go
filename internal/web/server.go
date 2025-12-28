@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/PatrickWalther/twitch-miner-go/internal/analytics"
 	"github.com/PatrickWalther/twitch-miner-go/internal/config"
@@ -23,6 +24,10 @@ var templatesFS embed.FS
 //go:embed static/*
 var staticFS embed.FS
 
+type NextStreamCheckProvider interface {
+	GetNextStreamCheck() time.Time
+}
+
 type Server struct {
 	host           string
 	port           int
@@ -33,15 +38,16 @@ type Server struct {
 	streamers      []*models.Streamer
 	discordEnabled bool
 
-	analytics           *analytics.Service
-	server              *http.Server
-	templates           map[string]*template.Template
-	settingsProvider    settings.SettingsProvider
-	onSettingsUpdate    settings.SettingsUpdateCallback
-	notificationManager *notifications.Manager
-	status              *StatusBroadcaster
-	ready               bool
-	mu                  sync.RWMutex
+	analytics               *analytics.Service
+	server                  *http.Server
+	templates               map[string]*template.Template
+	settingsProvider        settings.SettingsProvider
+	onSettingsUpdate        settings.SettingsUpdateCallback
+	notificationManager     *notifications.Manager
+	nextStreamCheckProvider NextStreamCheckProvider
+	status                  *StatusBroadcaster
+	ready                   bool
+	mu                      sync.RWMutex
 }
 
 func NewServer(analyticsSettings config.AnalyticsSettings, username string, basePath string, analyticsSvc *analytics.Service, streamers []*models.Streamer) *Server {
@@ -140,6 +146,12 @@ func (s *Server) SetNotificationManager(mgr *notifications.Manager) {
 	s.notificationManager = mgr
 }
 
+func (s *Server) SetNextStreamCheckProvider(provider NextStreamCheckProvider) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.nextStreamCheckProvider = provider
+}
+
 func (s *Server) SetDiscordEnabled(enabled bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -194,6 +206,7 @@ func (s *Server) Start() {
 	mux.HandleFunc("/api/status", s.handleAPIStatus)
 	mux.HandleFunc("/api/miner-status", s.handleAPIMinerStatus)
 	mux.HandleFunc("/api/miner-status/stream", s.handleAPIMinerStatusStream)
+	mux.HandleFunc("/api/next-check", s.handleAPINextCheck)
 
 	// Settings routes
 	mux.HandleFunc("/settings", s.handleSettingsPage)

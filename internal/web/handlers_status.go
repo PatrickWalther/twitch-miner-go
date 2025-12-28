@@ -46,3 +46,19 @@ func (s *Server) handleAPIMinerStatusStream(w http.ResponseWriter, r *http.Reque
 		}
 	}
 }
+
+func (s *Server) handleAPINextCheck(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	provider := s.nextStreamCheckProvider
+	s.mu.RUnlock()
+
+	if provider == nil {
+		writeServiceUnavailable(w, "Next check info not available")
+		return
+	}
+
+	nextCheck := provider.GetNextStreamCheck()
+	writeJSONOK(w, map[string]interface{}{
+		"nextCheck": nextCheck.Unix(),
+	})
+}

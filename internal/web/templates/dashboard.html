@@ -3,7 +3,7 @@
 {{define "content"}}
 <h1 class="text-3xl font-bold mb-6">Dashboard</h1>
 
-<section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<section class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
     <article class="stat-card">
         <h2 class="text-3xl font-bold text-purple-500">{{.TotalPoints}}</h2>
         <p class="text-neutral-400 mt-2">Total Points</p>
@@ -15,6 +15,10 @@
     <article class="stat-card">
         <h2 class="text-3xl font-bold text-purple-500">{{.PointsToday}}</h2>
         <p class="text-neutral-400 mt-2">Points Today</p>
+    </article>
+    <article class="stat-card">
+        <h2 class="text-3xl font-bold text-purple-500" id="next-check-countdown">--:--</h2>
+        <p class="text-neutral-400 mt-2">Next Online Check</p>
     </article>
 </section>
 
@@ -41,5 +45,39 @@
         if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
         return Math.floor(seconds / 86400) + 'd ago';
     }
+
+    let nextCheckTimestamp = 0;
+
+    function updateCountdown() {
+        const countdownEl = document.getElementById('next-check-countdown');
+        if (!countdownEl || !nextCheckTimestamp) return;
+
+        const now = Math.floor(Date.now() / 1000);
+        const remaining = nextCheckTimestamp - now;
+
+        if (remaining <= 0) {
+            countdownEl.textContent = 'Checking...';
+            fetchNextCheck();
+        } else {
+            const minutes = Math.floor(remaining / 60);
+            const seconds = remaining % 60;
+            countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }
+
+    function fetchNextCheck() {
+        fetch('/api/next-check')
+            .then(response => response.json())
+            .then(data => {
+                if (data.nextCheck) {
+                    nextCheckTimestamp = data.nextCheck;
+                }
+            })
+            .catch(err => console.error('Failed to fetch next check time:', err));
+    }
+
+    fetchNextCheck();
+    setInterval(updateCountdown, 1000);
+    setInterval(fetchNextCheck, 30000);
 </script>
 {{end}}

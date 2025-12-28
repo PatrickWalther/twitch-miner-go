@@ -141,6 +141,61 @@ func (ws *WebSocketClient) Listen(topic Topic) {
 	_ = ws.send(msg)
 }
 
+func (ws *WebSocketClient) Unlisten(topic Topic) bool {
+	ws.mu.Lock()
+	found := false
+	var remaining []Topic
+	for _, t := range ws.topics {
+		if t.String() == topic.String() {
+			found = true
+		} else {
+			remaining = append(remaining, t)
+		}
+	}
+	ws.topics = remaining
+
+	var remainingPending []Topic
+	for _, t := range ws.pendingTopics {
+		if t.String() != topic.String() {
+			remainingPending = append(remainingPending, t)
+		}
+	}
+	ws.pendingTopics = remainingPending
+
+	isOpened := ws.isOpened
+	ws.mu.Unlock()
+
+	if found && isOpened {
+		data := &WSData{
+			Topics: []string{topic.String()},
+		}
+		if topic.IsUserTopic() {
+			data.AuthToken = ws.authToken
+		}
+
+		msg := WSMessage{
+			Type:  "UNLISTEN",
+			Nonce: generateNonce(),
+			Data:  data,
+		}
+
+		_ = ws.send(msg)
+	}
+
+	return found
+}
+
+func (ws *WebSocketClient) HasTopic(topic Topic) bool {
+	ws.mu.RLock()
+	defer ws.mu.RUnlock()
+	for _, t := range ws.topics {
+		if t.String() == topic.String() {
+			return true
+		}
+	}
+	return false
+}
+
 func (ws *WebSocketClient) send(msg WSMessage) error {
 	ws.writeMu.Lock()
 	defer ws.writeMu.Unlock()

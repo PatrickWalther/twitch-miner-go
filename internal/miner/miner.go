@@ -47,6 +47,9 @@ type Miner struct {
 	deviceID          string
 	externalAnalytics bool
 
+	nextStreamCheck     time.Time
+	streamCheckTrigger  chan struct{}
+
 	mu sync.RWMutex
 }
 
@@ -54,9 +57,10 @@ func New(cfg *config.Config, configPath string) *Miner {
 	deviceID := util.DeviceID()
 
 	return &Miner{
-		config:     cfg,
-		configPath: configPath,
-		deviceID:   deviceID,
+		config:             cfg,
+		configPath:         configPath,
+		deviceID:           deviceID,
+		streamCheckTrigger: make(chan struct{}, 1),
 	}
 }
 
@@ -197,6 +201,7 @@ func (m *Miner) setupComponents(ctx context.Context) {
 				m.webServer.AttachStreamers(streamers)
 				m.webServer.SetSettingsProvider(m)
 				m.webServer.SetSettingsUpdateCallback(m.ApplySettings)
+				m.webServer.SetNextStreamCheckProvider(m)
 			}
 		} else {
 			svc, err := analytics.NewService(m.db, m.dbBasePath)
@@ -216,6 +221,7 @@ func (m *Miner) setupComponents(ctx context.Context) {
 			if m.webServer != nil {
 				m.webServer.SetSettingsProvider(m)
 				m.webServer.SetSettingsUpdateCallback(m.ApplySettings)
+				m.webServer.SetNextStreamCheckProvider(m)
 			}
 		}
 	}
@@ -337,17 +343,56 @@ func (m *Miner) streamCheckLoop(ctx context.Context) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	m.mu.Lock()
+	m.nextStreamCheck = time.Now().Add(interval)
+	m.mu.Unlock()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			for _, s := range m.streamers.All() {
-				m.client.CheckStreamerOnline(s)
-				m.chatManager.ToggleChat(s)
-			}
+			m.checkAllStreamers()
+			m.mu.Lock()
+			m.nextStreamCheck = time.Now().Add(interval)
+			m.mu.Unlock()
+		case <-m.streamCheckTrigger:
+			m.checkUncheckedStreamers()
 		}
 	}
+}
+
+func (m *Miner) checkAllStreamers() {
+	for _, s := range m.streamers.All() {
+		m.client.CheckStreamerOnline(s)
+		m.chatManager.ToggleChat(s)
+	}
+}
+
+func (m *Miner) checkUncheckedStreamers() {
+	interval := time.Duration(m.config.RateLimits.StreamCheckInterval) * time.Second
+	now := time.Now()
+
+	for _, s := range m.streamers.All() {
+		lastChecked := s.GetLastChecked()
+		if lastChecked.IsZero() || now.Sub(lastChecked) >= interval {
+			m.client.CheckStreamerOnline(s)
+			m.chatManager.ToggleChat(s)
+		}
+	}
+}
+
+func (m *Miner) triggerStreamCheck() {
+	select {
+	case m.streamCheckTrigger <- struct{}{}:
+	default:
+	}
+}
+
+func (m *Miner) GetNextStreamCheck() time.Time {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.nextStreamCheck
 }
 
 func (m *Miner) handlePubSubMessage(msg *pubsub.PubSubMessage, s *models.Streamer) {
@@ -461,13 +506,57 @@ func (m *Miner) ApplySettings(s settings.RuntimeSettings) {
 		m.watcher.UpdateSettings(m.config.Priority, m.config.RateLimits)
 	}
 
-	m.streamers.ApplySettings(m.config.Streamers, m.config.StreamerSettings)
+	added, removed := m.streamers.ApplySettings(m.config.Streamers, m.config.StreamerSettings)
 
 	discordCfg := m.config.Discord
 	notifMgr := m.notifications
 	webServer := m.webServer
+	wsPool := m.wsPool
 
 	m.mu.Unlock()
+
+	for _, streamer := range added {
+		if wsPool != nil {
+			_ = wsPool.Submit(pubsub.NewTopic(pubsub.TopicVideoPlaybackByID, streamer.ChannelID))
+
+			if streamer.Settings.FollowRaid {
+				_ = wsPool.Submit(pubsub.NewTopic(pubsub.TopicRaid, streamer.ChannelID))
+			}
+			if streamer.Settings.MakePredictions {
+				_ = wsPool.Submit(pubsub.NewTopic(pubsub.TopicPredictionsChannel, streamer.ChannelID))
+			}
+			if streamer.Settings.ClaimMoments {
+				_ = wsPool.Submit(pubsub.NewTopic(pubsub.TopicCommunityMomentsChannel, streamer.ChannelID))
+			}
+			if streamer.Settings.CommunityGoals {
+				_ = wsPool.Submit(pubsub.NewTopic(pubsub.TopicCommunityPointsChannel, streamer.ChannelID))
+			}
+		}
+	}
+
+	for _, streamer := range removed {
+		if wsPool != nil {
+			wsPool.Unsubscribe(pubsub.NewTopic(pubsub.TopicVideoPlaybackByID, streamer.ChannelID))
+			wsPool.Unsubscribe(pubsub.NewTopic(pubsub.TopicRaid, streamer.ChannelID))
+			wsPool.Unsubscribe(pubsub.NewTopic(pubsub.TopicPredictionsChannel, streamer.ChannelID))
+			wsPool.Unsubscribe(pubsub.NewTopic(pubsub.TopicCommunityMomentsChannel, streamer.ChannelID))
+			wsPool.Unsubscribe(pubsub.NewTopic(pubsub.TopicCommunityPointsChannel, streamer.ChannelID))
+		}
+		if m.chatManager != nil {
+			m.chatManager.Leave(streamer.Username)
+		}
+	}
+
+	if len(added) > 0 || len(removed) > 0 {
+		allStreamers := m.streamers.All()
+		if wsPool != nil {
+			wsPool.UpdateStreamers(allStreamers)
+		}
+		if webServer != nil {
+			webServer.AttachStreamers(allStreamers)
+		}
+		m.triggerStreamCheck()
+	}
 
 	if notifMgr != nil {
 		if err := notifMgr.UpdateDiscordConfig(&discordCfg); err != nil {

@@ -346,6 +346,8 @@ func (c *TwitchClient) CheckStreamerOnline(streamer *models.Streamer) {
 		return
 	}
 
+	streamer.SetLastChecked(time.Now())
+
 	if !streamer.GetIsOnline() {
 		if err := c.GetSpadeURL(streamer); err != nil {
 			slog.Debug("Failed to get spade URL", "streamer", streamer.Username, "error", err)
