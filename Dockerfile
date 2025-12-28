@@ -46,6 +46,7 @@ ARG VERSION=dev
 
 # Build static binary
 RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath -buildvcs=false \
     -ldflags="-s -w -X github.com/PatrickWalther/twitch-miner-go/internal/version.Version=${VERSION}" \
     -o twitch-miner-go \
     ./cmd/miner
@@ -59,8 +60,9 @@ FROM scratch
 # Copy CA certificates for HTTPS requests
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-# Copy timezone data
-COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+# Copy timezone data (UTC only to minimize image size)
+COPY --from=builder /usr/share/zoneinfo/UTC /usr/share/zoneinfo/UTC
+ENV TZ=UTC
 
 # Copy binary
 COPY --from=builder /build/twitch-miner-go /twitch-miner-go
