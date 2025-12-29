@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon.png" alt="Twitch Points Miner" width="128">
+  <img src="assets/icon.svg" alt="Twitch Points Miner" width="128">
 </p>
 
 # Twitch Channel Points Miner
